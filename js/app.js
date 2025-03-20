@@ -419,13 +419,23 @@ class App {
         const extension = extensions[format] || '.txt';
         const fullFilename = filename + extension;
         
+        // Create a blob with the content
         const blob = new Blob([content], {type: 'text/plain'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = fullFilename;
-        a.click();
         
-        this.ui.showNotification(`Downloaded ${fullFilename}`);
+        // Create a temporary download link
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.download = fullFilename;
+        
+        // Trigger the download
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        this.ui.showNotification(`Exported to ${fullFilename}`);
+        this.ui.hideModal('export-modal');
+
+
     }
 }
 
