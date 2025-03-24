@@ -4,9 +4,10 @@
  * 
  * This module handles the antenna performance calculations including gain,
  * front-to-back ratio, impedance, and radiation pattern calculations.
- * It implements simplified models and can be extended to use a more
- * sophisticated NEC engine for accurate simulations.
+ * Uses the NEC2C WebAssembly engine for accurate electromagnetic simulations.
  */
+
+import NEC2Engine from './wasm/nec2-engine.js';
 
 export class AntennaCalculator {
     constructor() {
@@ -15,6 +16,71 @@ export class AntennaCalculator {
         
         // Reference impedance for VSWR calculations
         this.referenceImpedance = 50; // ohms
+
+        // NEC2C WASM 엔진
+        this.engine = null;
+        this.isReady = false;
+        
+        // 엔진 초기화 시작
+        this._initEngine();
+    }
+    
+    /**
+     * NEC2C 엔진을 초기화합니다
+     * @private
+     */
+    async _initEngine() {
+        try {
+            this.engine = new NEC2Engine(true, () => {
+                this.isReady = true;
+                console.log('NEC2C 엔진 초기화 완료');
+            });
+        } catch (error) {
+            console.error('NEC2C 엔진 초기화 실패:', error);
+        }
+    }
+    
+    /**
+     * 엔진이 준비될 때까지 기다립니다
+     * @private
+     */
+    async _waitForEngine() {
+        if (this.isReady) return;
+        
+        return new Promise(resolve => {
+            const checkInterval = setInterval(() => {
+                if (this.isReady) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+    
+    /**
+     * 안테나 모델을 NEC2C 입력으로 변환합니다
+     * @private
+     * @param {object} antennaModel 안테나 모델
+     * @param {number} frequency 주파수 (MHz)
+     * @returns {object} NEC2C 입력 모델
+     */
+    _convertModelToNEC(antennaModel, frequency) {
+        // 엘리먼트를 위치별로 정렬
+        const elements = [...antennaModel.elements].sort((a, b) => a.position - b.position);
+        
+        // NEC2C 입력 모델 준비
+        return {
+            frequency,
+            elements: elements.map(el => ({
+                type: el.type,
+                length: el.length,  // mm
+                position: el.position, // mm
+                diameter: el.diameter // mm
+            })),
+            boomDiameter: antennaModel.boomDiameter,
+            boomMaterial: antennaModel.boomMaterial === 'metal' ? 'metal' : 'nonmetal',
+            groundType: antennaModel.groundType || 'free-space'
+        };
     }
 
     /**
@@ -24,123 +90,126 @@ export class AntennaCalculator {
      * @returns {object} Results including gain, F/B ratio, impedance, VSWR, etc.
      */
     async calculateAntennaPerformance(antennaModel, frequency = null) {
-        // Use model center frequency if not specified
+        // 엔진이 준비될 때까지 기다림
+        await this._waitForEngine();
+        
+        // 모델 중앙 주파수 사용(지정되지 않은 경우)
         const freq = frequency || antennaModel.centerFrequency;
         
-        // This is a placeholder for future NEC integration
-        // For now, we'll use simplified approximation models
-        
-        // Calculate wavelength in mm
-        const wavelength = this.c / (freq * 1000000);
-        
-        // Check if we have valid elements
-        if (antennaModel.elements.length === 0) {
+        // 요소가 없는 경우 기본값 반환
+        if (!antennaModel.elements || antennaModel.elements.length === 0) {
             return {
                 gain: 0,
                 fbRatio: 0,
                 impedance: { r: 0, x: 0 },
                 vswr: 999,
-                beamwidth: 360
+                beamwidth: 360,
+                frequency: freq
             };
         }
         
-        // Sort elements by position to ensure proper analysis
-        const elements = [...antennaModel.elements].sort((a, b) => a.position - b.position);
-        
-        // Element spacing relative to driven element (in wavelengths)
-        const drivenIndex = elements.findIndex(el => el.type === 'driven');
-        if (drivenIndex === -1) {
-            return { error: 'No driven element found' };
-        }
-        
-        const drivenPos = elements[drivenIndex].position;
-        const spacings = elements.map(el => (el.position - drivenPos) / wavelength);
-        
-        // Element lengths in wavelengths
-        const lengths = elements.map(el => el.length / wavelength);
-        
-        // Calculate gain using approximation formulas
-        // This is a simplified model - for more accuracy we'll use NEC engine
-        let gain = 7.8; // Base gain for 3-element Yagi
-        
-        // Additional gain from directors (diminishing returns)
-        const directorCount = elements.filter(el => el.type === 'director').length;
-        if (directorCount > 0) {
-            // First director contributes ~2 dB, with diminishing returns for additional directors
-            gain += 2 * Math.sqrt(directorCount);
-        }
-        
-        // Calculate front-to-back ratio
-        // This is a simplified approximation
-        let fbRatio = 12;  // Base value for simple Yagi
-        
-        if (directorCount > 0) {
-            fbRatio += 3 * Math.log2(directorCount + 1);
-        }
-        
-        // Reflector spacing affects F/B ratio
-        const reflectorIndex = elements.findIndex(el => el.type === 'reflector');
-        if (reflectorIndex !== -1) {
-            const reflectorSpacing = Math.abs(spacings[reflectorIndex]);
+        try {
+            // 안테나 모델을 NEC2 형식으로 변환
+            const necModel = this._convertModelToNEC(antennaModel, freq);
             
-            // Optimal reflector spacing is typically 0.15-0.25 wavelengths
-            if (reflectorSpacing >= 0.15 && reflectorSpacing <= 0.25) {
-                fbRatio += 8;
-            } else if (reflectorSpacing > 0 && reflectorSpacing < 0.4) {
-                // Less optimal spacing
-                fbRatio += 3;
+            // NEC2 엔진 초기화
+            await this.engine.reset();
+            
+            // 요소 추가
+            for (const element of necModel.elements) {
+                // 구동 요소는 중앙에 위치, 나머지는 길이의 절반씩 양쪽으로
+                const halfLength = element.length / 2;
+                
+                await this.engine.addWireSegment(
+                    element.position, -halfLength, 0,  // 시작점 (x, y, z)
+                    element.position, halfLength, 0,   // 끝점 (x, y, z)
+                    element.diameter / 2,              // 반지름
+                    Math.max(3, Math.floor(element.length / 100)) // 세그먼트 수 (최소 3)
+                );
             }
+            
+            // 구동 요소에 급전점 추가
+            const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
+            if (drivenIndex !== -1) {
+                const drivenElement = necModel.elements[drivenIndex];
+                // 드라이븐 요소의 중앙에 급전점 추가 (카드 5)
+                await this.engine.addExcitation(drivenIndex + 1, Math.floor(Math.max(3, Math.floor(drivenElement.length / 100)) / 2));
+            }
+            
+            // 주파수 설정
+            await this.engine.setFrequency(freq);
+            
+            // 분석 실행
+            const result = await this.engine.runAnalysis();
+            
+            // 임피던스 추출
+            const impedance = {
+                r: result.impedance.resistance,
+                x: result.impedance.reactance
+            };
+            
+            // VSWR 계산
+            const vswr = this._calculateVSWR(result.impedance);
+            
+            // 결과 반환
+            return {
+                gain: result.gain,
+                fbRatio: result.fbRatio,
+                impedance: impedance,
+                vswr: vswr,
+                beamwidth: this._calculateBeamwidth(result),
+                frequency: freq
+            };
+        } catch (error) {
+            console.error('안테나 성능 계산 중 오류:', error);
+            return {
+                error: '시뮬레이션 실패: ' + error.message,
+                frequency: freq
+            };
+        }
+    }
+    
+    /**
+     * 임피던스로부터 VSWR 계산
+     * @private
+     * @param {object} impedance r과 x 속성을 가진 객체 (복소 임피던스)
+     * @param {number} z0 기준 임피던스 (일반적으로 50 옴)
+     * @returns {number} VSWR 값
+     */
+    _calculateVSWR(impedance, z0 = 50) {
+        const r = impedance.resistance;
+        const x = impedance.reactance;
+        
+        // 반사 계수 (크기) 계산
+        const z = Math.sqrt(r * r + x * x);
+        const reflectionCoeff = Math.abs((z - z0) / (z + z0));
+        
+        // 반사 계수에서 VSWR 계산
+        // 0으로 나누기 방지
+        if (reflectionCoeff === 1) {
+            return 999; // 사실상 무한대 VSWR
         }
         
-        // Calculate impedance (simplified model)
-        // In reality, this depends on complex mutual coupling between elements
-        let impedance = { r: 50, x: 0 }; // Start with ideal case
+        const vswr = (1 + reflectionCoeff) / (1 - reflectionCoeff);
+        return vswr;
+    }
+    
+    /**
+     * 대략적인 빔폭 계산
+     * @private
+     * @param {object} result 시뮬레이션 결과
+     * @returns {number} 대략적인 빔폭 (도)
+     */
+    _calculateBeamwidth(result) {
+        // 이득에 기반한 대략적인 빔폭
+        const gain = result.gain;
         
-        // Adjust based on driven element length
-        const drivenLength = lengths[drivenIndex];
-        if (drivenLength > 0.46 && drivenLength < 0.49) {
-            // Near resonance for a half-wave dipole
-            impedance.r = 67;
-            impedance.x = (drivenLength - 0.475) * 1000; // approximation for reactance
-        } else if (drivenLength >= 0.49 && drivenLength <= 0.51) {
-            // Very close to resonance
-            impedance.r = 73;
-            impedance.x = (drivenLength - 0.5) * 600;
-        } else {
-            // Away from resonance
-            impedance.r = 50;
-            impedance.x = (drivenLength - 0.475) * 1500;
-        }
+        // 이득이 높을수록 빔폭이 좁아짐
+        // 대략적인 공식: beamwidth ≈ 70 / sqrt(gain)
+        let beamwidth = 70 / Math.sqrt(Math.pow(10, gain / 10));
         
-        // Director spacing affects impedance
-        if (directorCount > 0) {
-            // Directors typically lower the impedance
-            impedance.r -= 5 * Math.min(3, directorCount);
-        }
-        
-        // Calculate VSWR based on impedance
-        const vswr = this.calculateVSWR(impedance, this.referenceImpedance);
-        
-        // Calculate beamwidth (approximation)
-        let beamwidth = 60;  // Base value for a typical Yagi
-        
-        // More directors = narrower beam
-        if (directorCount > 0) {
-            beamwidth -= 5 * Math.sqrt(directorCount);
-        }
-        
-        // Longer antennas have narrower beamwidths
-        beamwidth = Math.max(20, beamwidth); // limit minimum beamwidth
-        
-        // Return all calculated values
-        return {
-            gain,
-            fbRatio,
-            impedance,
-            vswr,
-            beamwidth,
-            frequency: freq
-        };
+        // 합리적인 범위로 제한
+        return Math.max(10, Math.min(180, beamwidth));
     }
 
     /**
@@ -152,6 +221,9 @@ export class AntennaCalculator {
      * @returns {object} Results including arrays of frequency, gain, vswr, etc.
      */
     async calculateFrequencySweep(antennaModel, startFreq, endFreq, steps) {
+        // 엔진이 준비될 때까지 기다림
+        await this._waitForEngine();
+        
         const results = {
             frequencies: [],
             gains: [],
@@ -160,21 +232,69 @@ export class AntennaCalculator {
             impedances: []
         };
         
-        // Generate frequency points
+        // 안테나 모델을 NEC2 형식으로 초기 변환
+        const necModel = this._convertModelToNEC(antennaModel, startFreq);
+        
+        // 요소 설정 (한 번만 수행)
+        await this.engine.reset();
+        
+        // 요소 추가
+        for (const element of necModel.elements) {
+            const halfLength = element.length / 2;
+            await this.engine.addWireSegment(
+                element.position, -halfLength, 0,  // 시작점 (x, y, z)
+                element.position, halfLength, 0,   // 끝점 (x, y, z)
+                element.diameter / 2,              // 반지름
+                Math.max(3, Math.floor(element.length / 100)) // 세그먼트 수 (최소 3)
+            );
+        }
+        
+        // 구동 요소에 급전점 추가
+        const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
+        if (drivenIndex !== -1) {
+            const drivenElement = necModel.elements[drivenIndex];
+            // 드라이븐 요소의 중앙에 급전점 추가 (카드 5)
+            await this.engine.addExcitation(drivenIndex + 1, Math.floor(Math.max(3, Math.floor(drivenElement.length / 100)) / 2));
+        }
+        
+        // 주파수 포인트 생성
         const freqStep = (endFreq - startFreq) / (steps - 1);
         
+        // 각 주파수에서 성능 계산
         for (let i = 0; i < steps; i++) {
             const frequency = startFreq + (freqStep * i);
             results.frequencies.push(frequency);
             
-            // Calculate performance at this frequency
-            const perfResult = await this.calculateAntennaPerformance(antennaModel, frequency);
-            
-            // Store results
-            results.gains.push(perfResult.gain);
-            results.fbRatios.push(perfResult.fbRatio);
-            results.vswrs.push(perfResult.vswr);
-            results.impedances.push(perfResult.impedance);
+            try {
+                // 주파수 설정 (형상은 동일하게 유지)
+                await this.engine.setFrequency(frequency);
+                
+                // 분석 실행
+                const result = await this.engine.runAnalysis();
+                
+                // 임피던스 추출
+                const impedance = {
+                    r: result.impedance.resistance,
+                    x: result.impedance.reactance
+                };
+                
+                // VSWR 계산
+                const vswr = this._calculateVSWR(impedance);
+                
+                // 결과 저장
+                results.gains.push(result.gain);
+                results.fbRatios.push(result.fbRatio);
+                results.vswrs.push(vswr);
+                results.impedances.push(impedance);
+            } catch (error) {
+                console.error(`주파수 ${frequency}MHz에서 계산 중 오류:`, error);
+                
+                // 오류 발생 시 기본값 추가
+                results.gains.push(0);
+                results.fbRatios.push(0);
+                results.vswrs.push(999);
+                results.impedances.push({ r: 0, x: 0 });
+            }
         }
         
         return results;
@@ -188,10 +308,40 @@ export class AntennaCalculator {
      * @returns {object} Radiation pattern data in 3D coordinates
      */
     async calculateRadiationPattern(antennaModel, frequency, angleStep = 5) {
-        // Calculate max gain for normalization
-        const perfResult = await this.calculateAntennaPerformance(antennaModel, frequency);
-        const maxGain = perfResult.gain;
-        const wavelength = this.c / (frequency * 1000000);
+        // 엔진이 준비될 때까지 기다림
+        await this._waitForEngine();
+
+        // 안테나 모델을 NEC2 형식으로 변환
+        const necModel = this._convertModelToNEC(antennaModel, frequency);
+        
+        // 엔진 초기화 및 모델 설정
+        await this.engine.reset();
+        
+        // 와이어 세그먼트 추가
+        for (const element of necModel.elements) {
+            const halfLength = element.length / 2;
+            await this.engine.addWireSegment(
+                element.position, -halfLength, 0,  // 시작점 (x, y, z)
+                element.position, halfLength, 0,   // 끝점 (x, y, z)
+                element.diameter / 2,              // 반지름
+                Math.max(3, Math.floor(element.length / 100)) // 세그먼트 수
+            );
+        }
+        
+        // 구동 요소에 급전점 추가
+        const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
+        if (drivenIndex !== -1) {
+            const drivenElement = necModel.elements[drivenIndex];
+            // 드라이븐 요소의 중앙에 급전점 추가
+            await this.engine.addExcitation(drivenIndex + 1, Math.floor(Math.max(3, Math.floor(drivenElement.length / 100)) / 2));
+        }
+        
+        // 주파수 설정
+        await this.engine.setFrequency(frequency);
+        
+        // 기본 분석 실행하여 최대 이득 확인
+        const baseResult = await this.engine.runAnalysis();
+        const maxGain = baseResult.gain;
         
         // Create arrays to store pattern data
         const azimuthPoints = Math.ceil(360 / angleStep);
@@ -203,31 +353,48 @@ export class AntennaCalculator {
             data3D: []                               // Full 3D pattern
         };
         
-        // Sort elements by position
-        const elements = [...antennaModel.elements].sort((a, b) => a.position - b.position);
+        // 각 방향에 대해 방사 패턴 계산
         
-        // Element positions in wavelengths
-        const positions = elements.map(el => el.position / wavelength);
-        
-        // Calculate azimuth pattern (horizontal plane)
+        // 수평면(azimuth) 패턴 계산 (고도 90도)
         for (let i = 0; i < azimuthPoints; i++) {
             const azimuth = i * angleStep;
-            pattern.azimuth[i] = this.calculatePatternGain(azimuth, 90, elements, positions, wavelength, maxGain);
+            try {
+                // NEC2C 엔진으로 특정 방향의 이득 계산
+                const gainResult = await this.engine.calculateRadiationPattern(azimuth, 90);
+                // 최대 이득으로 정규화 (0-1 범위)
+                pattern.azimuth[i] = Math.pow(10, (gainResult.gain - maxGain) / 20);
+            } catch (error) {
+                console.error(`방위각 ${azimuth}도에서 방사 패턴 계산 중 오류:`, error);
+                pattern.azimuth[i] = 0; // 오류 시 0으로 설정
+            }
         }
         
-        // Calculate elevation pattern (vertical plane along main beam)
+        // 수직면(elevation) 패턴 계산 (방위각 0도)
         for (let i = 0; i < elevationPoints; i++) {
             const elevation = i * angleStep;
-            pattern.elevation[i] = this.calculatePatternGain(0, elevation, elements, positions, wavelength, maxGain);
+            try {
+                const gainResult = await this.engine.calculateRadiationPattern(0, elevation);
+                pattern.elevation[i] = Math.pow(10, (gainResult.gain - maxGain) / 20);
+            } catch (error) {
+                console.error(`고도 ${elevation}도에서 방사 패턴 계산 중 오류:`, error);
+                pattern.elevation[i] = 0;
+            }
         }
         
-        // Calculate full 3D pattern
+        // 3D 방사 패턴 계산
         for (let az = 0; az < 360; az += angleStep) {
             for (let el = 0; el <= 180; el += angleStep) {
-                const gain = this.calculatePatternGain(az, el, elements, positions, wavelength, maxGain);
+                let gain = 0;
+                try {
+                    // NEC2C 엔진으로 모든 방향에 대한 이득 계산
+                    const gainResult = await this.engine.calculateRadiationPattern(az, el);
+                    // 최대 이득으로 정규화 (0-1 범위)
+                    gain = Math.pow(10, (gainResult.gain - maxGain) / 20);
+                } catch (error) {
+                    console.error(`방위각 ${az}도, 고도 ${el}도에서 방사 패턴 계산 중 오류:`, error);
+                }
                 
-                // Convert to 3D coordinates using spherical to cartesian conversion
-                // r = gain, theta = elevation, phi = azimuth
+                // 구형 좌표계를 직교 좌표계로 변환
                 const r = gain;
                 const phi = az * Math.PI / 180;
                 const theta = el * Math.PI / 180;
@@ -249,70 +416,11 @@ export class AntennaCalculator {
     }
 
     /**
-     * Calculate radiation pattern gain at a specific direction
-     * @param {number} azimuth Azimuth angle in degrees
-     * @param {number} elevation Elevation angle in degrees
-     * @param {array} elements Array of antenna elements
-     * @param {array} positions Array of element positions in wavelengths
-     * @param {number} wavelength Wavelength in mm
-     * @param {number} maxGain Maximum gain for normalization
-     * @returns {number} Normalized gain (0-1)
+     * @deprecated 이 메서드는 더 이상 사용되지 않으며 NEC2C 엔진이 직접 방사 패턴을 계산합니다.
      */
     calculatePatternGain(azimuth, elevation, elements, positions, wavelength, maxGain) {
-        // Convert angles to radians
-        const azRad = azimuth * Math.PI / 180;
-        const elRad = elevation * Math.PI / 180;
-        
-        // Reference to the first element position
-        const refPos = positions[0];
-        
-        // Simplify for now - use array factor calculation
-        // This is a basic approximation - future versions will use NEC for accuracy
-        
-        // Each element has a relative amplitude and phase
-        const amplitudes = elements.map(el => {
-            if (el.type === 'reflector') return 0.7;
-            if (el.type === 'driven') return 1.0;
-            if (el.type === 'director') return 0.6;
-            return 0.5;
-        });
-        
-        // Phase is affected by element position and excitation
-        const phases = elements.map((el, idx) => {
-            // Forward direction is at azimuth = 0
-            if (el.type === 'driven') return 0;
-            if (el.type === 'reflector') return -30 * Math.PI / 180; // arbitrary phase lag for reflector
-            return 0; // directors are in phase with driven element in this simplified model
-        });
-        
-        // Calculate array factor
-        let realSum = 0;
-        let imagSum = 0;
-        
-        for (let i = 0; i < elements.length; i++) {
-            // Phase difference due to position and direction
-            const posDiff = positions[i] - refPos;
-            const phaseDiff = 2 * Math.PI * posDiff * Math.cos(azRad) * Math.sin(elRad);
-            
-            // Total phase including element excitation
-            const totalPhase = phaseDiff + phases[i];
-            
-            // Add contribution from this element
-            realSum += amplitudes[i] * Math.cos(totalPhase);
-            imagSum += amplitudes[i] * Math.sin(totalPhase);
-        }
-        
-        // Calculate pattern magnitude
-        let magnitude = Math.sqrt(realSum * realSum + imagSum * imagSum);
-        
-        // Normalize to max gain
-        magnitude = Math.pow(magnitude, 2) * (maxGain / 15); // Scale to match max gain
-        
-        // Ensure back lobes are not too small (more realistic)
-        magnitude = Math.max(magnitude, 0.05);
-        
-        // Scale to 0-1 range for visualization
-        return magnitude;
+        console.warn('calculatePatternGain은 더 이상 사용되지 않으며, NEC2C 엔진이 직접 방사 패턴을 계산합니다.');
+        return 0;
     }
 
     /**
