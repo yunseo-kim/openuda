@@ -2,8 +2,8 @@
  * NEC-2 Web Worker
  * This worker runs the NEC-2 WebAssembly module in a separate thread
  * 
- * 멀티스레딩 및 SIMD 벡터화 최적화 지원
- * 유전 알고리즘 기반 안테나 최적화 병렬 처리 지원
+ * Supports multithreading and SIMD vectorization optimization
+ * Supports parallel processing for genetic algorithm-based antenna optimization
  */
 
 let necModule = null;
@@ -11,32 +11,32 @@ let isReady = false;
 let isOptimized = false;
 let modulePath = '';
 
-// 유전 알고리즘 파라미터
+// Genetic algorithm parameters
 const GA_CONFIG = {
     populationSize: 30,
     maxGenerations: 20,
     mutationRate: 0.15,
     crossoverRate: 0.8,
-    elitism: 2 // 최상위 개체 보존 수
+    elitism: 2 // Number of top individuals preserved
 };
 
-// 병렬 시뮬레이션 관리
+// Parallel simulation management
 let simulationQueue = [];
 let isSimulating = false;
 
-// 메인 스레드에서 오는 메시지 처리
+// Process messages from the main thread
 self.onmessage = async function(event) {
     const data = event.data;
     
     try {
         switch (data.type) {
             case 'init':
-                // WebAssembly 모듈 초기화
+                // Initialize WebAssembly module
                 modulePath = data.modulePath || './nec2_direct.js';
                 await initializeModule();
                 break;
-            
-        case 'addWireSegment':
+                
+            case 'addWireSegment':
             if (!checkReady(data.callbackId)) return;
             
             const segResult = necModule.ccall(
@@ -58,7 +58,7 @@ self.onmessage = async function(event) {
             postResult(data.callbackId, segResult);
             break;
             
-        case 'setFrequency':
+            case 'setFrequency':
             if (!checkReady(data.callbackId)) return;
             
             const freqResult = necModule.ccall(
@@ -71,7 +71,7 @@ self.onmessage = async function(event) {
             postResult(data.callbackId, freqResult);
             break;
             
-        case 'calculateRadiationPattern':
+            case 'calculateRadiationPattern':
             if (!checkReady(data.callbackId)) return;
             
             const patternResult = necModule.ccall(
@@ -91,37 +91,37 @@ self.onmessage = async function(event) {
             postResult(data.callbackId, patternResult);
             break;
             
-        case 'getGain':
+            case 'getGain':
             if (!checkReady(data.callbackId)) return;
             
-            const gain = necModule.ccall(
+            const gainValue = necModule.ccall(
                 'nec2_get_gain',
                 'number',
                 ['number', 'number'],
                 [data.params.theta, data.params.phi]
             );
             
-            postResult(data.callbackId, gain);
+            postResult(data.callbackId, gainValue);
             break;
             
-        case 'calculateImpedance':
+            case 'calculateImpedance':
             if (!checkReady(data.callbackId)) return;
             
-            const resistancePtr = necModule._malloc(8); // double
-            const reactancePtr = necModule._malloc(8); // double
+            const impedanceResistancePtr = necModule._malloc(8); // double
+            const impedanceReactancePtr = necModule._malloc(8); // double
             
             const impedanceResult = necModule.ccall(
                 'nec2_calculate_impedance',
                 'number',
                 ['number', 'number'],
-                [resistancePtr, reactancePtr]
+                [impedanceResistancePtr, impedanceReactancePtr]
             );
             
-            const resistance = necModule.getValue(resistancePtr, 'double');
-            const reactance = necModule.getValue(reactancePtr, 'double');
+            const resistance = necModule.getValue(impedanceResistancePtr, 'double');
+            const reactance = necModule.getValue(impedanceReactancePtr, 'double');
             
-            necModule._free(resistancePtr);
-            necModule._free(reactancePtr);
+            necModule._free(impedanceResistancePtr);
+            necModule._free(impedanceReactancePtr);
             
             postResult(data.callbackId, { 
                 resistance, 
@@ -130,34 +130,34 @@ self.onmessage = async function(event) {
             });
             break;
             
-        case 'runAnalysis':
+            case 'runAnalysis':
             if (!checkReady(data.callbackId)) return;
             
             const gainPtr = necModule._malloc(8); // double
             const fbRatioPtr = necModule._malloc(8); // double
-            const resistancePtr = necModule._malloc(8); // double
-            const reactancePtr = necModule._malloc(8); // double
+            const analysisResistancePtr = necModule._malloc(8); // double
+            const analysisReactancePtr = necModule._malloc(8); // double
             
             const analysisResult = necModule.ccall(
                 'nec2_run_analysis',
                 'number',
                 ['number', 'number', 'number', 'number'],
-                [gainPtr, fbRatioPtr, resistancePtr, reactancePtr]
+                [gainPtr, fbRatioPtr, analysisResistancePtr, analysisReactancePtr]
             );
             
             const gain = necModule.getValue(gainPtr, 'double');
             const fbRatio = necModule.getValue(fbRatioPtr, 'double');
-            const resistance = necModule.getValue(resistancePtr, 'double');
-            const reactance = necModule.getValue(reactancePtr, 'double');
+            const analysisResistance = necModule.getValue(analysisResistancePtr, 'double');
+            const analysisReactance = necModule.getValue(analysisReactancePtr, 'double');
             
             necModule._free(gainPtr);
             necModule._free(fbRatioPtr);
-            necModule._free(resistancePtr);
-            necModule._free(reactancePtr);
+            necModule._free(analysisResistancePtr);
+            necModule._free(analysisReactancePtr);
             
             // Calculate VSWR assuming 50 ohm reference impedance
             const z0 = 50.0;
-            const z = Math.sqrt(resistance * resistance + reactance * reactance);
+            const z = Math.sqrt(analysisResistance * analysisResistance + analysisReactance * analysisReactance);
             const rho = Math.abs((z - z0) / (z + z0));
             const vswr = (1 + rho) / (1 - rho);
             
@@ -165,7 +165,7 @@ self.onmessage = async function(event) {
                 gain,
                 fbRatio,
                 vswr,
-                impedance: { resistance, reactance },
+                impedance: { resistance: analysisResistance, reactance: analysisReactance },
                 status: analysisResult
             });
             break;
@@ -173,7 +173,7 @@ self.onmessage = async function(event) {
         case 'runSimulation':
                 if (!checkReady(data.callbackId)) return;
                 
-                // NEC2 입력 파일 생성 및 시뮬레이션 실행
+                // Generate NEC2 input file and run simulation
                 try {
                     const result = await runNEC2Simulation(data.options);
                     postResult(data.callbackId, result);
@@ -185,7 +185,7 @@ self.onmessage = async function(event) {
             case 'runParallelSimulations':
                 if (!checkReady(data.callbackId)) return;
                 
-                // 병렬 시뮬레이션 실행 (유전 알고리즘용)
+                // Run parallel simulations (for genetic algorithm)
                 try {
                     const results = await runParallelSimulations(data.designs);
                     postResult(data.callbackId, results);
@@ -197,7 +197,7 @@ self.onmessage = async function(event) {
             case 'optimizeAntenna':
                 if (!checkReady(data.callbackId)) return;
                 
-                // 유전 알고리즘 기반 안테나 최적화
+                // Genetic algorithm-based antenna optimization
                 try {
                     const result = await runGeneticOptimization(data.params);
                     postResult(data.callbackId, result);
@@ -207,10 +207,10 @@ self.onmessage = async function(event) {
                 break;
                 
             case 'cleanup':
-                // 리소스 정리
+                // Clean up resources
                 if (isReady && necModule) {
                     try {
-                        // 가상 파일 시스템 내 불필요한 파일 정리
+                        // Clean up unnecessary files in the virtual file system
                         for (const file of necModule.FS.readdir('/')) {
                             if (file !== '.' && file !== '..' && file !== 'tmp') {
                                 try {
@@ -243,25 +243,25 @@ self.onmessage = async function(event) {
 };
 
 /**
- * NEC-2 WebAssembly 모듈 초기화
- * ES 모듈 형식으로 가져오기
+ * Initialize NEC-2 WebAssembly module
+ * Import using ES module format
  */
 async function initializeModule() {
     try {
-        // 동적 모듈 임포트 (importScripts 대신 ES 모듈 사용)
+        // Dynamic module import (using ES modules instead of importScripts)
         const moduleUrl = new URL(modulePath, self.location.href).href;
         const module = await import(moduleUrl);
         const moduleClass = module.default;
         
         if (!moduleClass) {
-            throw new Error(`모듈 클래스를 찾을 수 없습니다: ${modulePath}`);
+            throw new Error(`Module class not found: ${modulePath}`);
         }
         
-        // 모듈 초기화
-        console.log('NEC2 WebAssembly 모듈 초기화 중...');
+        // Initialize module
+        console.log('Initializing NEC2 WebAssembly module...');
         necModule = await moduleClass();
         
-        // SIMD 지원 확인
+        // Check SIMD support
         isOptimized = typeof WebAssembly.validate === 'function' && 
             WebAssembly.validate(new Uint8Array([
                 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
@@ -270,10 +270,10 @@ async function initializeModule() {
                 0x00, 0x00, 0x00, 0x00, 0x0b
             ]));
         
-        // NEC2 메인 프로그램이 직접 main() 함수를 호출하므로 별도의 초기화 함수 호출 불필요
+        // NEC2 main program directly calls the main() function, so no separate initialization function call is needed
         isReady = true;
         
-        // 준비 완료 알림
+        // Notify ready status
         self.postMessage({ 
             type: 'ready',
             optimized: isOptimized,
@@ -306,9 +306,9 @@ function checkReady(callbackId) {
 }
 
 /**
- * 결과를 메인 스레드로 전송
- * @param {string} callbackId - 콜백 ID
- * @param {*} result - 결과 데이터
+ * Send results to the main thread
+ * @param {string} callbackId - Callback ID
+ * @param {*} result - Result data
  */
 function postResult(callbackId, result) {
     if (!callbackId) return;
@@ -321,9 +321,9 @@ function postResult(callbackId, result) {
 }
 
 /**
- * 오류를 메인 스레드로 전송
- * @param {string} callbackId - 콜백 ID
- * @param {string} errorMessage - 오류 메시지
+ * Send errors to the main thread
+ * @param {string} callbackId - Callback ID
+ * @param {string} errorMessage - Error message
  */
 function postError(callbackId, errorMessage) {
     if (!callbackId) {
@@ -342,9 +342,9 @@ function postError(callbackId, errorMessage) {
 }
 
 /**
- * NEC2 입력 파일을 생성합니다.
- * @param {Object} options - 시뮬레이션 옵션
- * @returns {string} NEC2 입력 파일 내용
+ * Generate NEC2 input file
+ * @param {Object} options - Simulation options
+ * @returns {string} NEC2 input file content
  */
 function generateNEC2Input(options) {
     const lines = [];
@@ -391,16 +391,16 @@ function generateNEC2Input(options) {
     
     lines.push(`RP 0 ${pattern.thetaSteps} ${pattern.phiSteps} 0 0 0 0 ${pattern.thetaStart} ${thetaStep} ${pattern.phiStart} ${phiStep}`);
     
-    // 종료 카드
+    // End card
     lines.push('EN');
     
     return lines.join('\n');
 }
 
 /**
- * NEC2 출력 데이터를 파싱합니다.
- * @param {string} outputData - NEC2 출력 내용
- * @returns {Object} 파싱된 결과
+ * Parse NEC2 output data
+ * @param {string} outputData - NEC2 output content
+ * @returns {Object} Parsed results
  */
 function parseNEC2Output(outputData) {
     const result = {
@@ -418,7 +418,7 @@ function parseNEC2Output(outputData) {
     };
     
     try {
-        // 에러 메시지 확인
+        // Check for error messages
         if (outputData.includes('ERROR')) {
             const errorMatch = outputData.match(/ERROR[^\n]*/g);
             if (errorMatch) {
@@ -426,12 +426,12 @@ function parseNEC2Output(outputData) {
             }
         }
         
-        // 임피던스 추출
+        // Extract impedance
         const impedanceMatch = outputData.match(/IMPEDANCE\s*=\s*(\d+\.\d+)\s*([+-]\s*j\s*\d+\.\d+)/i);
         if (impedanceMatch) {
             result.impedance.resistance = parseFloat(impedanceMatch[1]);
             
-            // 리액턴스 부호 처리
+            // Process reactance sign
             const reactanceStr = impedanceMatch[2].replace(/\s+/g, '');
             if (reactanceStr.includes('+j')) {
                 result.impedance.reactance = parseFloat(reactanceStr.replace('+j', ''));
@@ -451,10 +451,10 @@ function parseNEC2Output(outputData) {
         if (denominator - numerator !== 0) {
             result.vswr = (numerator + denominator) / (denominator - numerator);
         } else {
-            result.vswr = 999; // 무한대 VSWR
+            result.vswr = 999; // Infinite VSWR
         }
         
-        // 방사 패턴 데이터 추출
+        // Extract radiation pattern data
         const patternSection = outputData.match(/RADIATION PATTERNS[\s\S]*?END OF RUN/i);
         if (patternSection) {
             const patternLines = patternSection[0].split('\n');
@@ -462,33 +462,33 @@ function parseNEC2Output(outputData) {
             let backGain = null;
             
             for (const line of patternLines) {
-                // 이득 데이터 행 형식: THETA PHI ... POWER GAINS...
+                // Gain data row format: THETA PHI ... POWER GAINS...
                 const gainMatch = line.match(/^\s*(\d+\.\d+)\s+(\d+\.\d+)\s+.*\s+(\d+\.\d+)\s*$/);
                 if (gainMatch) {
                     const theta = parseFloat(gainMatch[1]);
                     const phi = parseFloat(gainMatch[2]);
                     const gainDb = parseFloat(gainMatch[3]);
                     
-                    // 최대 이득 업데이트
+                    // Update maximum gain
                     if (gainDb > result.gain.max) {
                         result.gain.max = gainDb;
                     }
                     
-                    // 방사 패턴 데이터 저장
+                    // Store radiation pattern data
                     result.gain.data.push({ theta, phi, gain: gainDb });
                     
-                    // 전후방비 계산을 위한 데이터 수집
+                    // Collect data for front-to-back ratio calculation
                     if (Math.abs(theta - 90) < 0.1) {
                         if (Math.abs(phi) < 0.1 || Math.abs(phi - 360) < 0.1) {
-                            frontGain = gainDb; // 전방 이득 (90°, 0°)
+                            frontGain = gainDb; // Front gain (90°, 0°)
                         } else if (Math.abs(phi - 180) < 0.1) {
-                            backGain = gainDb; // 후방 이득 (90°, 180°)
+                            backGain = gainDb; // Back gain (90°, 180°)
                         }
                     }
                 }
             }
             
-            // 전후방비 계산
+            // Calculate front-to-back ratio
             if (frontGain !== null && backGain !== null) {
                 result.frontToBackRatio = frontGain - backGain;
             }
@@ -502,62 +502,62 @@ function parseNEC2Output(outputData) {
 }
 
 /**
- * NEC2 시뮬레이션을 실행합니다.
- * @param {Object} options - 시뮬레이션 옵션
- * @returns {Promise<Object>} 시뮬레이션 결과
+ * Run NEC2 simulation
+ * @param {Object} options - Simulation options
+ * @returns {Promise<Object>} Simulation results
  */
 async function runNEC2Simulation(options) {
     if (!isReady || !necModule) {
-        throw new Error('NEC2 모듈이 준비되지 않았습니다');
+        throw new Error('NEC2 module is not ready');
     }
     
     try {
-        // NEC2 입력 파일 생성
+        // Generate NEC2 input file
         const inputData = generateNEC2Input(options);
         
-        // 가상 파일 시스템에 입력 파일 작성
+        // Write input file to virtual file system
         necModule.FS.writeFile('input.nec', inputData);
         
-        // NEC2 실행
+        // Execute NEC2
         const result = necModule.ccall('main', 'number', ['number', 'array'], 
             [4, ['nec2c', '-c', 'input.nec', 'output.nec']]);
         
         if (result !== 0) {
-            console.warn(`NEC2 시뮬레이션 리턴 코드: ${result}`);
+            console.warn(`NEC2 simulation return code: ${result}`);
         }
         
-        // 출력 파일 읽기
+        // Read output file
         let outputData;
         try {
             outputData = necModule.FS.readFile('output.nec', { encoding: 'utf8' });
         } catch (err) {
-            console.error('출력 파일 읽기 오류:', err);
-            throw new Error('NEC2 출력 파일을 읽을 수 없습니다');
+            console.error('Error reading output file:', err);
+            throw new Error('Cannot read NEC2 output file');
         }
         
-        // 결과 파싱 및 반환
+        // Parse and return results
         return parseNEC2Output(outputData);
     } catch (error) {
-        console.error('NEC2 시뮬레이션 오류:', error);
+        console.error('NEC2 simulation error:', error);
         throw error;
     }
 }
 
 /**
- * 여러 안테나 설계를 병렬로 시뮬레이션합니다.
- * @param {Array<Object>} designs - 안테나 설계 배열
- * @returns {Promise<Array<Object>>} 시뮬레이션 결과 배열
+ * Simulate multiple antenna designs in parallel
+ * @param {Array<Object>} designs - Array of antenna designs
+ * @returns {Promise<Array<Object>>} Array of simulation results
  */
 async function runParallelSimulations(designs) {
     if (!Array.isArray(designs) || designs.length === 0) {
-        throw new Error('유효한 설계 배열이 필요합니다');
+        throw new Error('Valid design array is required');
     }
     
-    // WebAssembly는 싱글 스레드이므로 실제로는 순차 실행
-    // SharedArrayBuffer 접근 충돌 방지를 위해 큐 사용
+    // WebAssembly is single-threaded, so execution is actually sequential
+    // Use queue to prevent SharedArrayBuffer access conflicts
     const results = [];
     
-    // 모든 설계에 대해 시뮬레이션 실행
+    // Run simulation for all designs
     for (let i = 0; i < designs.length; i++) {
         try {
             const result = await runNEC2Simulation(designs[i]);
@@ -579,21 +579,21 @@ async function runParallelSimulations(designs) {
 }
 
 /**
- * 안테나 설계의 적합도를 계산합니다.
- * @param {Object} result - 시뮬레이션 결과
- * @param {Object} goals - 최적화 목표
- * @returns {number} 적합도 점수 (높을수록 좋음)
+ * Calculate fitness of an antenna design
+ * @param {Object} result - Simulation result
+ * @param {Object} goals - Optimization goals
+ * @returns {number} Fitness score (higher is better)
  */
 function calculateFitness(result, goals) {
-    // 결과 검증
+    // Validate results
     if (!result) {
-        console.error('시뮬레이션 결과가 없습니다');
+        console.error('No simulation results available');
         return -999;
     }
     
-    // 오류가 있으면 최저 점수 반환
+    // Return lowest score if there are errors
     if (result.errors && result.errors.length > 0) {
-        console.warn('시뮬레이션 오류 발견:', result.errors);
+        console.warn('Simulation errors found:', result.errors);
         return -999;
     }
     
@@ -603,84 +603,84 @@ function calculateFitness(result, goals) {
             gain: 1.0,
             frontToBack: 0.5,
             vswr: 2.0,
-            balanced: 1.5 // 균형 잡힌 성능에 대한 가중치
+            balanced: 1.5 // Weight for balanced performance
         };
         
-        // NaN이나 undefined 값 확인
+        // Check for NaN or undefined values
         if (!result.gain || isNaN(result.gain.max)) {
-            console.warn('이득 데이터가 유효하지 않음');
-            return -888; // 다른 오류 코드 사용
+            console.warn('Gain data is not valid');
+            return -888; // Use different error code
         }
         
         if (isNaN(result.frontToBackRatio)) {
-            console.warn('전후방비 데이터가 유효하지 않음');
+            console.warn('Front-to-back ratio data is not valid');
             return -888;
         }
         
         if (isNaN(result.vswr)) {
-            console.warn('VSWR 데이터가 유효하지 않음');
+            console.warn('VSWR data is not valid');
             return -888;
         }
         
-        // 이득 (높을수록 좋음)
+        // Gain (higher is better)
         if (goals.includeGain !== false) {
             const gainWeight = weights.gain || 1.0;
-            const normalizedGain = Math.min(Math.max(result.gain.max, 0), 15) / 15; // 0~15dBi를 0~1로 정규화
-            fitness += gainWeight * normalizedGain * 10; // 스케일링
+            const normalizedGain = Math.min(Math.max(result.gain.max, 0), 15) / 15; // Normalize 0~15dBi to 0~1
+            fitness += gainWeight * normalizedGain * 10; // Scaling
         }
         
-        // 전후방비 (높을수록 좋음)
+        // Front-to-back ratio (higher is better)
         if (goals.includeFrontToBack !== false) {
             const fbWeight = weights.frontToBack || 0.5;
-            const normalizedFB = Math.min(result.frontToBackRatio, 30) / 30; // 0~30dB를 0~1로 정규화
-            fitness += fbWeight * normalizedFB * 10; // 스케일링
+            const normalizedFB = Math.min(result.frontToBackRatio, 30) / 30; // Normalize 0~30dB to 0~1
+            fitness += fbWeight * normalizedFB * 10; // Scaling
         }
         
-        // VSWR (낮을수록 좋음, 역변환)
+        // VSWR (lower is better, inverse transformation)
         if (goals.includeVSWR !== false) {
             const vswrWeight = weights.vswr || 2.0;
             let vswrScore;
             
             if (result.vswr <= 1.5) {
-                // VSWR이 1.5 이하면 최대 점수
+                // Maximum score if VSWR is 1.5 or below
                 vswrScore = 1.0;
             } else if (result.vswr <= 3.0) {
-                // 1.5~3.0 범위는 선형 감소
+                // Linear decrease for range 1.5~3.0
                 vswrScore = 1.0 - (result.vswr - 1.5) / 1.5;
             } else {
-                // 3.0 초과는 매우 낮은 점수
-                vswrScore = Math.max(0, 0.5 - (result.vswr - 3.0) / 14.0); // 3~10 범위에서 0.5~0
+                // Very low score for values over 3.0
+                vswrScore = Math.max(0, 0.5 - (result.vswr - 3.0) / 14.0); // From 0.5 to 0 in range 3~10
             }
             
-            fitness += vswrWeight * vswrScore * 10; // 스케일링
+            fitness += vswrWeight * vswrScore * 10; // Scaling
         }
         
-        // 균형 잡힌 성능 (모든 값이 평균 이상이면 보너스)
+        // Balanced performance (bonus if all values are above average)
         if (goals.includeBalanced !== false) {
             const balancedWeight = weights.balanced || 1.5;
             
-            // 각 지표가 평균적으로 좋은지 확인
+            // Check if each metric is better than average
             let balanceScore = 0;
             
-            if (result.gain.max >= 8) balanceScore++; // 8dBi 이상
-            if (result.frontToBackRatio >= 15) balanceScore++; // 15dB 이상
-            if (result.vswr <= 2.0) balanceScore++; // 2.0 이하
+            if (result.gain.max >= 8) balanceScore++; // Above 8dBi
+            if (result.frontToBackRatio >= 15) balanceScore++; // Above 15dB
+            if (result.vswr <= 2.0) balanceScore++; // Below 2.0
             
-            // 모든 지표가 평균 이상이면 추가 보너스
+            // Additional bonus if all metrics are above average
             if (balanceScore === 3) {
                 balanceScore = 4;
             }
             
-            fitness += balancedWeight * (balanceScore / 4) * 10; // 스케일링
+            fitness += balancedWeight * (balanceScore / 4) * 10; // Scaling
         }
         
-        // 페널티: 임피던스가 비정상적인 경우
+        // Penalty: abnormal impedance
         const impedance = result.impedance;
         if (!impedance || !impedance.resistance) {
-            console.warn('임피던스 데이터가 유효하지 않음');
-            fitness -= 5; // 약한 페널티
+            console.warn('Impedance data is not valid');
+            fitness -= 5; // Mild penalty
         } else {
-            // 임피던스 범위 확인 (10~300 ohm이 적절한 범위)
+            // Check impedance range (10~300 ohm is appropriate range)
             if (impedance.resistance < 10 || impedance.resistance > 300) {
                 const penalty = Math.min(10, Math.abs(impedance.resistance < 10 ? 
                     10 - impedance.resistance : impedance.resistance - 300) / 10);
@@ -690,78 +690,78 @@ function calculateFitness(result, goals) {
         
         return fitness;
     } catch (error) {
-        console.error('적합도 계산 중 오류 발생:', error);
-        return -777; // 다른 오류 코드 사용
+        console.error('Error calculating fitness:', error);
+        return -777; // Use different error code
     }
 }
 
 /**
- * 두 부모 설계로부터 자식 설계를 생성합니다.
- * @param {Object} parent1 - 첫 번째 부모 설계
- * @param {Object} parent2 - 두 번째 부모 설계
- * @param {number} crossoverRate - 교차 확률
- * @param {number} mutationRate - 변이 확률
- * @returns {Object} 자식 설계
+ * Create a child design from two parent designs
+ * @param {Object} parent1 - First parent design
+ * @param {Object} parent2 - Second parent design
+ * @param {number} crossoverRate - Crossover probability
+ * @param {number} mutationRate - Mutation probability
+ * @returns {Object} Child design
  */
 function crossoverDesigns(parent1, parent2, crossoverRate, mutationRate) {
-    const child = JSON.parse(JSON.stringify(parent1)); // 깊은 복사
+    const child = JSON.parse(JSON.stringify(parent1)); // Deep copy
     
-    // 교차
+    // Crossover
     if (Math.random() < crossoverRate) {
-        // 와이어 요소 교차
+        // Wire element crossover
         if (child.wires && parent2.wires && child.wires.length === parent2.wires.length) {
             for (let i = 0; i < child.wires.length; i++) {
-                // 랜덤하게 부모 선택
+                // Randomly select parent
                 if (Math.random() < 0.5) {
                     child.wires[i] = JSON.parse(JSON.stringify(parent2.wires[i]));
                 }
             }
         }
         
-        // 주파수 교차
+        // Frequency crossover
         if (Math.random() < 0.5) {
             child.frequency = parent2.frequency;
         }
     }
     
-    // 변이
+    // Mutation
     if (Math.random() < mutationRate) {
-        // 모든 와이어에 대해 변이 적용 기회 부여
+        // Apply mutation opportunity to all wires
         if (child.wires && child.wires.length > 0) {
             for (let i = 0; i < child.wires.length; i++) {
                 const wire = child.wires[i];
                 
-                // 시작점 변이
+                // Starting point mutation
                 if (Math.random() < mutationRate) {
                     wire.start.x += (Math.random() - 0.5) * 0.1;
                     wire.start.y += (Math.random() - 0.5) * 0.1;
                     wire.start.z += (Math.random() - 0.5) * 0.1;
                 }
                 
-                // 끝점 변이
+                // Ending point mutation
                 if (Math.random() < mutationRate) {
                     wire.end.x += (Math.random() - 0.5) * 0.1;
                     wire.end.y += (Math.random() - 0.5) * 0.1;
                     wire.end.z += (Math.random() - 0.5) * 0.1;
                 }
                 
-                // 반지름 변이 (10% 내외)
+                // Radius mutation (within 10%)
                 if (Math.random() < mutationRate) {
-                    wire.radius *= 0.9 + Math.random() * 0.2; // 0.9~1.1 배
+                    wire.radius *= 0.9 + Math.random() * 0.2; // 0.9~1.1 times
                 }
                 
-                // 세그먼트 수 변이
+                // Segment count mutation
                 if (Math.random() < mutationRate) {
-                    // 세그먼트 수는 정수여야 함
+                    // Segment count must be an integer
                     const change = Math.random() < 0.5 ? -1 : 1;
-                    wire.segments = Math.max(3, wire.segments + change); // 최소 3개 세그먼트 유지
+                    wire.segments = Math.max(3, wire.segments + change); // Maintain minimum 3 segments
                 }
             }
         }
         
-        // 주파수 변이 (5% 내외)
+        // Frequency mutation (within 5%)
         if (Math.random() < mutationRate) {
-            child.frequency *= 0.95 + Math.random() * 0.1; // 0.95~1.05 배
+            child.frequency *= 0.95 + Math.random() * 0.1; // 0.95~1.05 times
         }
     }
     
@@ -769,70 +769,70 @@ function crossoverDesigns(parent1, parent2, crossoverRate, mutationRate) {
 }
 
 /**
- * 유전 알고리즘을 사용하여 안테나 설계를 최적화합니다.
- * @param {Object} params - 최적화 매개변수
- * @returns {Promise<Object>} 최적화 결과
+ * Optimize antenna design using genetic algorithm
+ * @param {Object} params - Optimization parameters
+ * @returns {Promise<Object>} Optimization results
  */
 async function runGeneticOptimization(params) {
     try {
-        // 기본 유전 알고리즘 설정으로 GA_CONFIG 사용, 사용자 설정으로 오버라이드
+        // Use GA_CONFIG as default genetic algorithm settings, override with user settings
         const config = { ...GA_CONFIG, ...params.gaConfig };
         
-        // 설정 검증 및 보정
+        // Validate and adjust settings
         if (config.populationSize < 10) {
-            console.warn('집단 크기가 너무 작습니다. 최소 10으로 조정합니다.');
+            console.warn('Population size is too small. Adjusting to minimum of 10.');
             config.populationSize = 10;
         }
         
         if (config.mutationRate < 0.01 || config.mutationRate > 0.5) {
-            console.warn(`변이율이 적절하지 않습니다(${config.mutationRate}). 0.01~0.5 범위로 조정합니다.`);
+            console.warn(`Mutation rate is not appropriate (${config.mutationRate}). Adjusting to range 0.01~0.5.`);
             config.mutationRate = Math.max(0.01, Math.min(0.5, config.mutationRate));
         }
         
         if (config.crossoverRate < 0.5 || config.crossoverRate > 1.0) {
-            console.warn(`교차율이 적절하지 않습니다(${config.crossoverRate}). 0.5~1.0 범위로 조정합니다.`);
+            console.warn(`Crossover rate is not appropriate (${config.crossoverRate}). Adjusting to range 0.5~1.0.`);
             config.crossoverRate = Math.max(0.5, Math.min(1.0, config.crossoverRate));
         }
         
         if (config.elitism < 0 || config.elitism > config.populationSize / 3) {
-            console.warn(`엘리트 개체 수가 적절하지 않습니다. 집단 크기의 1/3 이하로 조정합니다.`);
+            console.warn(`Number of elite individuals is not appropriate. Adjusting to at most 1/3 of population size.`);
             config.elitism = Math.max(0, Math.min(Math.floor(config.populationSize / 3), config.elitism));
         }
         
-        // 초기 설계 모델 검증
+        // Validate initial design model
         if (!params.initialDesign) {
-            throw new Error('초기 설계 모델이 필요합니다');
+            throw new Error('Initial design model is required');
         }
         
-        // 최적화 목표 설정 - 균형 잡힌 성능 목표 추가
+        // Set optimization goals - add balanced performance goal
         const goals = params.goals || {
             includeGain: true,
             includeFrontToBack: true,
             includeVSWR: true,
-            includeBalanced: true, // 균형 잡힌 성능 목표 추가
+            includeBalanced: true, // Add balanced performance goal
             weights: {
                 gain: 1.0,
                 frontToBack: 0.5,
                 vswr: 2.0,
-                balanced: 1.5 // 균형 가중치
+                balanced: 1.5 // Balance weight
             }
         };
     
-    // 초기 개체군 생성
+    // Create initial population
     let population = [];
     const baseDesign = params.initialDesign;
     
-    // 기본 모델 포함
+    // Include base model
     population.push(JSON.parse(JSON.stringify(baseDesign)));
     
-    // 나머지 개체들은 기본 모델의 변형으로 생성
+    // Generate remaining individuals as variants of the base model
     for (let i = 1; i < config.populationSize; i++) {
         const design = JSON.parse(JSON.stringify(baseDesign));
         
-        // 설계 변형 (초기 다양성 확보)
+        // Design variation (ensure initial diversity)
         if (design.wires) {
             for (const wire of design.wires) {
-                // 시작점과 끝점에 랜덤 변형 (±10%)
+                // Random variation to start and end points (±10%)
                 wire.start.x += (Math.random() - 0.5) * 0.2 * Math.abs(wire.start.x || 0.1);
                 wire.start.y += (Math.random() - 0.5) * 0.2 * Math.abs(wire.start.y || 0.1);
                 wire.start.z += (Math.random() - 0.5) * 0.2 * Math.abs(wire.start.z || 0.1);
@@ -841,33 +841,33 @@ async function runGeneticOptimization(params) {
                 wire.end.y += (Math.random() - 0.5) * 0.2 * Math.abs(wire.end.y || 0.1);
                 wire.end.z += (Math.random() - 0.5) * 0.2 * Math.abs(wire.end.z || 0.1);
                 
-                // 반지름에 랜덤 변형 (±20%)
-                wire.radius *= 0.8 + Math.random() * 0.4; // 0.8~1.2 배
+                // Random variation to radius (±20%)
+                wire.radius *= 0.8 + Math.random() * 0.4; // 0.8~1.2 times
             }
         }
         
-        // 주파수에 랜덤 변형 (±5%)
+        // Random variation to frequency (±5%)
         if (design.frequency) {
-            design.frequency *= 0.95 + Math.random() * 0.1; // 0.95~1.05 배
+            design.frequency *= 0.95 + Math.random() * 0.1; // 0.95~1.05 times
         }
         
         population.push(design);
     }
     
-    // 세대별 최적 결과 기록
+    // Record optimal results for each generation
     const generationResults = [];
     let bestDesign = null;
     let bestFitness = -Infinity;
     let bestResult = null;
     
-    // 세대 진화 시작
+    // Start generation evolution
     for (let generation = 0; generation < config.maxGenerations; generation++) {
-        console.log(`세대 ${generation + 1}/${config.maxGenerations} 시뮬레이션 중...`);
+        console.log(`Generation ${generation + 1}/${config.maxGenerations} simulating...`);
         
-        // 모든 설계에 대한 시뮬레이션 실행
+        // Run simulations for all designs
         const simResults = await runParallelSimulations(population);
         
-        // 적합도 계산 및 설계에 할당
+        // Calculate fitness and assign to designs
         const populationWithFitness = [];
         let generationBestFitness = -Infinity;
         let generationBestDesign = null;
@@ -881,8 +881,8 @@ async function runGeneticOptimization(params) {
                 try {
                     const fitness = calculateFitness(simResult.data, goals);
                     
-                    // 유효한 적합도 검증
-                    if (fitness > -700) { // 심각한 오류가 아니면 (-999, -888, -777보다 큰 값)
+                    // Validate fitness score
+                    if (fitness > -700) { // Not a serious error (larger than -999, -888, -777)
                         validDesignCount++;
                         
                         populationWithFitness.push({
@@ -891,52 +891,52 @@ async function runGeneticOptimization(params) {
                             result: simResult.data
                         });
                         
-                        // 세대 내 최적 설계 업데이트
+                        // Update best design within generation
                         if (fitness > generationBestFitness) {
                             generationBestFitness = fitness;
                             generationBestDesign = JSON.parse(JSON.stringify(population[i]));
                             generationBestResult = simResult.data;
                         }
                         
-                        // 전체 최적 설계 업데이트
+                        // Update overall best design
                         if (fitness > bestFitness) {
                             bestFitness = fitness;
                             bestDesign = JSON.parse(JSON.stringify(population[i]));
                             bestResult = simResult.data;
                         }
                     } else {
-                        console.warn(`설계 #${i}: 유효하지 않은 적합도 (${fitness})`);
+                        console.warn(`Design #${i}: Invalid fitness (${fitness})`);
                         populationWithFitness.push({
                             design: population[i],
-                            fitness: -600, // 유효하지 않지만 완전히 실패는 아닌 경우
+                            fitness: -600, // Invalid but not a complete failure
                             result: null
                         });
                     }
                 } catch (error) {
-                    console.error(`설계 #${i} 적합도 계산 중 오류:`, error);
+                    console.error(`Error calculating fitness for design #${i}:`, error);
                     populationWithFitness.push({
                         design: population[i],
-                        fitness: -800, // 오류 발생
+                        fitness: -800, // Error occurred
                         result: null
                     });
                 }
             } else {
-                // 시뮬레이션 실패한 설계에 패널티 적합도 부여
-                console.warn(`설계 #${i}: 시뮬레이션 실패 또는 결과 없음`);
+                // Assign penalty fitness to designs that failed simulation
+                console.warn(`Design #${i}: Simulation failed or no results`);
                 populationWithFitness.push({
                     design: population[i],
-                    fitness: -999, // 완전 실패
+                    fitness: -999, // Complete failure
                     result: null
                 });
             }
         }
         
-        // 유효한 설계 수가 너무 적으면 경고
+        // Warning if too few valid designs
         if (validDesignCount < config.populationSize * 0.3) {
-            console.warn(`경고: 유효한 설계 수가 너무 적습니다. ${validDesignCount}/${config.populationSize} (${Math.round(validDesignCount/config.populationSize*100)}%)`);
+            console.warn(`Warning: Too few valid designs. ${validDesignCount}/${config.populationSize} (${Math.round(validDesignCount/config.populationSize*100)}%)`);
         }
         
-        // 세대 결과 기록
+        // Record generation results
         generationResults.push({
             generation: generation + 1,
             bestFitness: populationWithFitness.length > 0 ? 
@@ -949,59 +949,59 @@ async function runGeneticOptimization(params) {
                     populationWithFitness[0]).design : null
         });
         
-        // 마지막 세대면 진화 종료
+        // End evolution if this is the last generation
         if (generation >= config.maxGenerations - 1) {
             break;
         }
         
-        // 적합도에 따라 정렬
+        // Sort by fitness
         populationWithFitness.sort((a, b) => b.fitness - a.fitness);
         
-        // 새 세대 생성
+        // Create new generation
         const newPopulation = [];
         
-        // 엘리트주의: 상위 설계 직접 다음 세대로 전달
+        // Elitism: Pass top designs directly to the next generation
         for (let i = 0; i < config.elitism; i++) {
             if (i < populationWithFitness.length) {
                 newPopulation.push(JSON.parse(JSON.stringify(populationWithFitness[i].design)));
             }
         }
         
-        // 나머지는 선택 및 교차로 채우기
+        // Fill the rest with selection and crossover
         while (newPopulation.length < config.populationSize) {
-            // 룰렛 휠 선택
+            // Roulette wheel selection
             const fitnessSum = populationWithFitness.reduce((sum, p) => sum + Math.max(0, p.fitness + 1000), 0);
             
-            // 부모 선택 함수
+            // Parent selection function
             const selectParent = () => {
                 const threshold = Math.random() * fitnessSum;
                 let sum = 0;
                 
                 for (const p of populationWithFitness) {
-                    sum += Math.max(0, p.fitness + 1000); // 모든 적합도를 양수로 만들기 위해 1000 추가
+                    sum += Math.max(0, p.fitness + 1000); // Add 1000 to make all fitness values positive
                     if (sum >= threshold) {
                         return p.design;
                     }
                 }
                 
-                // 기본값으로 최상위 설계 반환
+                // Return top design as default
                 return populationWithFitness[0].design;
             };
             
-            // 두 부모 선택
+            // Select two parents
             const parent1 = selectParent();
             const parent2 = selectParent();
             
-            // 자식 생성 및 추가
+            // Create and add child
             const child = crossoverDesigns(parent1, parent2, config.crossoverRate, config.mutationRate);
             newPopulation.push(child);
         }
         
-        // 새 세대로 교체
+        // Replace with new generation
         population = newPopulation;
     }
     
-    // 최종 최적화 결과 반환
+    // Return final optimization results
     return {
         bestDesign: bestDesign,
         bestFitness: bestFitness,
@@ -1012,7 +1012,7 @@ async function runGeneticOptimization(params) {
         status: 'success'
     };
     } catch (error) {
-        console.error('유전 알고리즘 최적화 중 심각한 오류 발생:', error);
+        console.error('Serious error occurred during genetic algorithm optimization:', error);
         return {
             error: error.message,
             stack: error.stack,
