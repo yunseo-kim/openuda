@@ -1,0 +1,36 @@
+{
+  "name": "openuda",
+  "version": "1.0.0",
+  "description": "OpenUda - Yagi-Uda Antenna Optimization and Design Web Application",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules tests/run-tests.js",
+    "test:watch": "node --experimental-vm-modules tests/run-tests.js --watch",
+    "prebuild": "npm test",
+    "build": "node build/build.js",
+    "serve": "python -m http.server 8000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yunseo-kim/openuda.git"
+  },
+  "keywords": [
+    "antenna",
+    "yagi-uda",
+    "optimization",
+    "webassembly",
+    "nec2c"
+  ],
+  "author": "",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/yunseo-kim/openuda/issues"
+  },
+  "homepage": "https://yunseo-kim.github.io/openuda/",
+  "devDependencies": {
+    "fs-extra": "^11.1.1",
+    "glob": "^10.3.0",
+    "jest": "^29.5.0"
+  }
+}

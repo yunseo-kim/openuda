@@ -1,6 +1,8 @@
 # OpenUda
 OpenUda: Yagi-Uda Antenna Design, Analysis, and Optimization Web App
 
+[![OpenUda Tests](https://github.com/yunseo-kim/openuda/actions/workflows/test-and-deploy.yml/badge.svg)](https://github.com/yunseo-kim/openuda/actions/workflows/test-and-deploy.yml)
+
 ## Overview
 
 OpenUda is a web application that enables users to design, analyze, and optimize Yagi-Uda antennas entirely in the browser. A Yagi-Uda antenna is a directional array consisting of a driven dipole and multiple parasitic elements (directors and reflectors) mounted along a boom, yielding a highly focused radiation beam ￼. OpenUda provides an intuitive interface and powerful simulation engine so that both hobbyists and engineers can easily tweak antenna parameters and immediately see performance results. By leveraging modern web technologies (WebAssembly, WebGL, etc.), OpenUda runs complex antenna calculations on the client side and can even work offline as a Progressive Web App.
@@ -50,6 +52,63 @@ OpenUda’s results are presented in a clear, informative manner across the UI t
 - The Pattern Analysis tab displays the radiation patterns. The 2D patterns (polar plots) typically show gain (or relative field strength) in dB on a circular graph where 0° corresponds to the antenna’s forward direction. For the vertical plane pattern, the plot might represent an elevation cut (showing how the antenna radiates above and below the horizon, assuming the antenna is oriented horizontally), whereas the horizontal plane pattern is an azimuth cut (showing the beamwidth and sidelobes in the horizontal plane). These plots help identify the antenna’s beamwidth (the angular width of the main lobe between -3 dB points) and check the sidelobe levels or backlobe level. The 3D pattern adds a full spatial perspective: it is essentially a lobed shape (often looking like a stretched balloon or teardrop shape in the case of a Yagi) that can be rotated. Using Three.js, the app renders this 3D plot with color or intensity indicating gain. The user can interact with this model as if inspecting a real radiation pattern in an anechoic chamber. This visualization is powered by WebGL for smooth rendering, even for fine angular resolution of the pattern. It’s an impressive feature usually found in desktop applications – for example, 4NEC2 can display 3D patterns for designs ￼ – now available in the browser via OpenUda. Furthermore, the user can capture or download these plots if needed (for inclusion in reports or comparison between designs).
 
 All numeric results and charts can be exported or saved. OpenUda could allow exporting the chart data as CSV or the plots as images. This way, users not only interact with the results online but can also document their designs. The emphasis is on delivering professional-quality output: the goal is that a user could use OpenUda to design an antenna and then present the results (gain, SWR curves, pattern plots) just as they would if they had used a traditional PC application. The app’s high-fidelity output makes it suitable for real engineering use, education, or hobbyist experimentation alike.
+
+## Automated Testing and Deployment System
+
+To ensure code quality for the Yagi-Uda Antenna Optimization System (OpenUda), we have implemented a comprehensive automated testing framework and CI/CD pipeline using GitHub Actions.
+
+### Testing Framework
+
+The testing system focuses on validating critical components of the application:
+
+1. **Calculator Module**: Tests that verify the accuracy of antenna performance calculations, including:
+   - Radiation pattern generation
+   - VSWR (Voltage Standing Wave Ratio) calculations
+   - Impedance analysis
+
+2. **Optimizer Module**: Tests that validate the genetic algorithm implementation for antenna optimization, ensuring correct handling of parameters such as:
+   - Population size: 30
+   - Maximum generations: 20
+   - Mutation rate: 0.15
+   - Crossover rate: 0.8
+   - Elitism: 2 (best individuals preserved)
+
+3. **Error Handling**: Tests that ensure the application properly handles edge cases and invalid inputs.
+
+This testing framework is implemented as Node.js modules that can run in both browser and server environments, supporting both local development testing and integration with automated CI pipelines.
+
+### GitHub Actions Workflow
+
+The CI/CD pipeline automatically:
+
+1. Runs all tests on every push to the main branch and pull requests
+2. Generates test reports for analysis
+3. Creates an optimized production build excluding test code
+4. Deploys to GitHub Pages automatically when tests pass successfully
+
+This ensures that:
+- Test code is included in the repository but excluded from production builds
+- All changes are validated before deployment
+- Code quality is maintained through a continuous integration process
+
+### Running Tests Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Run all tests
+npm test
+
+# Run specific test modules
+node tests/run-tests.js --module=calculator
+```
+
+The testing framework provides detailed feedback and failure diagnostics to facilitate problem-solving during development.
+
+### WebAssembly Integration Testing
+
+A key aspect of testing is validating the WebAssembly integration with the NEC2C engine. The test suite includes specialized mock objects for the NEC2C WebAssembly module, allowing the JavaScript interface functionality to be validated without the actual computation engine.
 
 ## Deployment and Offline Use
 
