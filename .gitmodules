@@ -1,0 +1,3 @@
+[submodule "/Users/yunseo/Documents/GitHub/openuda/emsdk"]
+	path = /Users/yunseo/Documents/GitHub/openuda/emsdk
+	url = https://github.com/emscripten-core/emsdk.git
