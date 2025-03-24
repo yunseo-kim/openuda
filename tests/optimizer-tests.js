@@ -168,8 +168,16 @@ optimizerSuite.addTest('constraints creation', () => {
     // Check constraint ranges - each element should have min and max values
     Assert.equal(constraints.elementLengths.length, 3, 'Should have constraints for all elements');
     
+    // Display all elements for debugging
+    console.log('Model elements:', model.elements);
+    console.log('Element 0 (reflector) type:', model.elements[0].type);
+    console.log('Element 1 (driven) type:', model.elements[1].type);
+    console.log('Element 2 (director) type:', model.elements[2].type);
+    
     // Reflector length should be around 0.5 wavelength
     const reflectorConstraint = constraints.elementLengths[0];
+    console.log('Reflector constraint values:', reflectorConstraint);
+    console.log('Wavelength test:', model.getWavelength());
     Assert.true(reflectorConstraint.min < 0.5 && reflectorConstraint.min > 0.4, 'Reflector min length should be ~0.48λ');
     Assert.true(reflectorConstraint.max > 0.5 && reflectorConstraint.max < 0.6, 'Reflector max length should be ~0.52λ');
 });
