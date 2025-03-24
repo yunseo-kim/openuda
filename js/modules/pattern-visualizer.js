@@ -29,11 +29,11 @@ export class PatternVisualizer {
         if (this.isInitialized) return;
         
         // Import required libraries
-        import('/js/lib/three.module.js').then(THREE => {
+        import('../lib/three.module.js').then(THREE => {
             this.THREE = THREE;
             
             // Import OrbitControls after Three.js is loaded
-            import('/js/lib/OrbitControls.js').then(OrbitControlsModule => {
+            import('../lib/OrbitControls.js').then(OrbitControlsModule => {
                 // Create renderer
                 this.renderer = new this.THREE.WebGLRenderer({ 
                     antialias: true,
@@ -243,9 +243,6 @@ export class PatternVisualizer {
             this.scene.remove(this.patternMesh);
         }
         
-        // Create vertices for the pattern
-        const vertices = [];
-        const colors = [];
         const points = patternData.data3D;
         
         // Calculate min/max gain for color normalization
@@ -257,32 +254,137 @@ export class PatternVisualizer {
             minGain = Math.min(minGain, point.gain);
         }
         
-        // Create vertices and colors from pattern data
+        // Group points by elevation angles for surface creation
+        const pointsByElevation = {};
+        const elevationAngles = [];
+        const azimuthAngles = [];
+        
         for (const point of points) {
-            vertices.push(point.x, point.y, point.z);
+            if (!pointsByElevation[point.elevation]) {
+                pointsByElevation[point.elevation] = [];
+                elevationAngles.push(point.elevation);
+            }
             
-            // Normalize gain for coloring
-            const normalizedGain = (point.gain - minGain) / (maxGain - minGain);
-            const color = this.getColorFromMap(normalizedGain, this.colorMap);
-            colors.push(color.r, color.g, color.b);
+            pointsByElevation[point.elevation].push(point);
+            
+            if (!azimuthAngles.includes(point.azimuth)) {
+                azimuthAngles.push(point.azimuth);
+            }
         }
         
-        // Create buffer geometry
+        // Sort angles for proper face creation
+        elevationAngles.sort((a, b) => a - b);
+        azimuthAngles.sort((a, b) => a - b);
+        
+        // Create a geometry with vertices and faces
         const geometry = new this.THREE.BufferGeometry();
+        const vertices = [];
+        const indices = [];
+        const colors = [];
+        const normals = [];
+        
+        // Add all vertices first
+        const vertexMap = {}; // Map elevation and azimuth to vertex index
+        let vertexIndex = 0;
+        
+        for (const elevation of elevationAngles) {
+            const elevationPoints = pointsByElevation[elevation];
+            
+            // Sort by azimuth
+            elevationPoints.sort((a, b) => a.azimuth - b.azimuth);
+            
+            for (const point of elevationPoints) {
+                vertices.push(point.x, point.y, point.z);
+                
+                // Store vertex index mapping
+                if (!vertexMap[elevation]) {
+                    vertexMap[elevation] = {};
+                }
+                vertexMap[elevation][point.azimuth] = vertexIndex++;
+                
+                // Add vertex color
+                const normalizedGain = (point.gain - minGain) / (maxGain - minGain || 1);
+                const color = this.getColorFromMap(normalizedGain, this.colorMap);
+                colors.push(color.r, color.g, color.b);
+                
+                // Add vertex normal (point from center to vertex for smooth lighting)
+                const length = Math.sqrt(point.x * point.x + point.y * point.y + point.z * point.z) || 0.0001;
+                normals.push(point.x / length, point.y / length, point.z / length);
+            }
+        }
+        
+        // Create triangular faces
+        for (let i = 0; i < elevationAngles.length - 1; i++) {  
+            const elev1 = elevationAngles[i];
+            const elev2 = elevationAngles[i + 1];
+            
+            for (let j = 0; j < azimuthAngles.length - 1; j++) {
+                const az1 = azimuthAngles[j];
+                const az2 = azimuthAngles[j + 1];
+                
+                // Get vertex indices
+                const v1 = vertexMap[elev1][az1];
+                const v2 = vertexMap[elev1][az2];
+                const v3 = vertexMap[elev2][az1];
+                const v4 = vertexMap[elev2][az2];
+                
+                if (v1 !== undefined && v2 !== undefined && v3 !== undefined) {
+                    indices.push(v1, v2, v3); // First triangle
+                }
+                
+                if (v2 !== undefined && v3 !== undefined && v4 !== undefined) {
+                    indices.push(v2, v4, v3); // Second triangle
+                }
+            }
+            
+            // Connect the last vertices to the first ones (close the loop)
+            const firstAz = azimuthAngles[0];
+            const lastAz = azimuthAngles[azimuthAngles.length - 1];
+            
+            const v1 = vertexMap[elev1][lastAz];
+            const v2 = vertexMap[elev1][firstAz];
+            const v3 = vertexMap[elev2][lastAz];
+            const v4 = vertexMap[elev2][firstAz];
+            
+            if (v1 !== undefined && v2 !== undefined && v3 !== undefined) {
+                indices.push(v1, v2, v3); // First triangle
+            }
+            
+            if (v2 !== undefined && v3 !== undefined && v4 !== undefined) {
+                indices.push(v2, v4, v3); // Second triangle
+            }
+        }
+        
+        // Add attributes to geometry
+        geometry.setIndex(indices);
         geometry.setAttribute('position', new this.THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('normal', new this.THREE.Float32BufferAttribute(normals, 3));
         geometry.setAttribute('color', new this.THREE.Float32BufferAttribute(colors, 3));
         
-        // Create material and mesh
-        const material = new this.THREE.PointsMaterial({
-            size: 0.03,
-            vertexColors: true, 
+        // Create material with vertex colors
+        const material = new this.THREE.MeshPhongMaterial({
+            vertexColors: true,
+            side: this.THREE.DoubleSide,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.9,
+            shininess: 50,
+            flatShading: false
         });
         
-        // Create points mesh
-        this.patternMesh = new this.THREE.Points(geometry, material);
+        // Create mesh and add to scene
+        this.patternMesh = new this.THREE.Mesh(geometry, material);
         this.scene.add(this.patternMesh);
+        
+        // Add wireframe outline for better visibility
+        const wireframe = new this.THREE.WireframeGeometry(geometry);
+        const lineMaterial = new this.THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.2
+        });
+        
+        this.wireframeMesh = new this.THREE.LineSegments(wireframe, lineMaterial);
+        this.scene.add(this.wireframeMesh);
     }
 
     /**
