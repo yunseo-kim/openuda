@@ -3,17 +3,31 @@
 # nec2c 엔진을 WebAssembly로 컴파일하는 스크립트
 # 멀티스레딩 및 SIMD 벡터화를 활용한 고성능 최적화 포함
 
-# 현재 디렉토리 확인
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo "Working in directory: $DIR"
+# 이식성 있는 경로 처리
+# 현재 스크립트 위치 확인
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+NEC2C_DIR="$SCRIPT_DIR"
+OUTPUT_DIR="$REPO_ROOT/js/modules/wasm"
+EMSDK_DIR="$REPO_ROOT/emsdk"
+
+echo "Repository root: $REPO_ROOT"
+echo "NEC2C directory: $NEC2C_DIR"
+echo "Output directory: $OUTPUT_DIR"
 
 # Emscripten SDK 설정
-EMSDK_DIR="$(cd "$DIR/../../emsdk" && pwd)"
-source "$EMSDK_DIR/emsdk_env.sh"
+if [ -f "$EMSDK_DIR/emsdk_env.sh" ]; then
+  source "$EMSDK_DIR/emsdk_env.sh"
+else
+  echo "Error: Emscripten SDK not found at $EMSDK_DIR"
+  exit 1
+fi
 
-# 출력 디렉토리 설정
-OUTPUT_DIR="$DIR/../../js/modules/wasm"
-mkdir -p "$OUTPUT_DIR"
+# 출력 디렉토리 존재 확인 및 생성
+if [ ! -d "$OUTPUT_DIR" ]; then
+  mkdir -p "$OUTPUT_DIR"
+  echo "Created output directory: $OUTPUT_DIR"
+fi
 
 # 병렬 빌드를 위한 CPU 코어 수 확인
 if [ "$(uname)" == "Darwin" ]; then
@@ -38,11 +52,21 @@ NEC2C_SOURCES=(
   "somnec.c"
 )
 
-# 소스 파일을 절대 경로로 변환
-SOURCES_ABS=()
+# 소스 파일 경로 확인 및 수집
+echo "Checking source files..."
+SOURCES=""
 for src in "${NEC2C_SOURCES[@]}"; do
-  SOURCES_ABS+=("$DIR/$src")
+  SRC_PATH="$NEC2C_DIR/$src"
+  if [ -f "$SRC_PATH" ]; then
+    SOURCES="$SOURCES $SRC_PATH"
+    echo "✓ Found source file: $src"
+  else
+    echo "✗ Error: Source file not found: $SRC_PATH"
+    exit 1
+  fi
 done
+
+echo "All source files found. Total: ${#NEC2C_SOURCES[@]} files."
 
 # 멀티스레딩 및 SIMD 최적화 버전 컴파일
 echo "Compiling high-performance NEC2C to WebAssembly with multithreading and SIMD..."
@@ -70,7 +94,7 @@ emcc \
   -s ASSERTIONS=1 \
   -s EXPORT_ES6=1 \
   -I "$DIR" \
-  "${SOURCES_ABS[@]}" \
+  $SOURCES \
   -o "$OUTPUT_DIR/nec2_direct.js"
 
 # 단일 스레드 폴백 버전도 컴파일 (브라우저가 SharedArrayBuffer를 지원하지 않는 경우)
@@ -91,7 +115,7 @@ emcc \
   -s ASSERTIONS=1 \
   -s EXPORT_ES6=1 \
   -I "$DIR" \
-  "${SOURCES_ABS[@]}" \
+  $SOURCES \
   -o "$OUTPUT_DIR/nec2_direct_single.js"
 
 # 컴파일 결과 확인 - 멀티스레딩 버전
@@ -132,7 +156,7 @@ else
     -s ASSERTIONS=1 \
     -s EXPORT_ES6=1 \
     -I "$DIR" \
-    "${SOURCES_ABS[@]}" \
+    $SOURCES \
     -o "$OUTPUT_DIR/nec2_direct.js"
   
   if [ $? -eq 0 ]; then
