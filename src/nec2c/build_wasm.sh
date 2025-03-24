@@ -38,6 +38,7 @@ fi
 echo "Using $NUM_CORES CPU cores for compilation"
 
 # NEC2C 소스 파일 목록
+# main.c를 첫 번째로 배치하여 prnt 함수가 먼저 컴파일되도록 함
 NEC2C_SOURCES=(
   "main.c"
   "geometry.c"
@@ -50,6 +51,7 @@ NEC2C_SOURCES=(
   "network.c"
   "shared.c"
   "somnec.c"
+  "input.c"
 )
 
 # 소스 파일 경로 확인 및 수집
@@ -67,6 +69,44 @@ for src in "${NEC2C_SOURCES[@]}"; do
 done
 
 echo "All source files found. Total: ${#NEC2C_SOURCES[@]} files."
+
+# 객체 파일(.o) 디렉토리 생성
+OBJ_DIR="$NEC2C_DIR/obj"
+rm -rf "$OBJ_DIR"
+mkdir -p "$OBJ_DIR"
+
+# 각 소스 파일을 개별적으로 컴파일하여 객체 파일 생성
+echo "Compiling NEC2C source files to object files..."
+for src in "${NEC2C_SOURCES[@]}"; do
+  SRC_PATH="$NEC2C_DIR/$src"
+  OBJ_PATH="$OBJ_DIR/${src%.c}.o"
+  
+  echo "Compiling $src to $OBJ_PATH"
+  emcc \
+    -c \
+    -O3 \
+    -ffast-math \
+    -DPACKAGE_STRING='"NEC2C WebAssembly 1.0"' \
+    -I "$NEC2C_DIR" \
+    "$SRC_PATH" \
+    -o "$OBJ_PATH"
+  
+  if [ $? -ne 0 ]; then
+    echo "Error compiling $src"
+    exit 1
+  fi
+done
+
+# 객체 파일 목록 생성
+OBJ_FILES=""
+for src in "${NEC2C_SOURCES[@]}"; do
+  OBJ_FILES="$OBJ_FILES $OBJ_DIR/${src%.c}.o"
+done
+
+# WebAssembly 모듈로 내보낼 함수 목록 정의
+# 메인 함수 포함 (필수)
+EXPORTED_FUNCS="['_main', '_wire', '_rdpat', '_load', '_zint', '_mem_alloc', '_free', '_malloc', '_prnt']"
+
 
 # 멀티스레딩 및 SIMD 최적화 버전 컴파일
 echo "Compiling high-performance NEC2C to WebAssembly with multithreading and SIMD..."
@@ -92,9 +132,8 @@ emcc \
   -s EXIT_RUNTIME=0 \
   -s ASSERTIONS=1 \
   -s EXPORT_ES6=1 \
-  -s EXPORTED_FUNCTIONS='["_wire", "_rdpat", "_main", "_load", "_zint", "_mem_alloc", "_mem_realloc", "_mem_free", "_free", "_malloc"]' \
-  -I "$DIR" \
-  $SOURCES \
+  -s "EXPORTED_FUNCTIONS=${EXPORTED_FUNCS}" \
+  $OBJ_FILES \
   -o "$OUTPUT_DIR/nec2_direct.js"
 
 # 단일 스레드 폴백 버전도 컴파일 (브라우저가 SharedArrayBuffer를 지원하지 않는 경우)
@@ -113,9 +152,8 @@ emcc \
   -s EXIT_RUNTIME=0 \
   -s ASSERTIONS=1 \
   -s EXPORT_ES6=1 \
-  -s EXPORTED_FUNCTIONS='["_wire", "_rdpat", "_main", "_load", "_zint", "_mem_alloc", "_mem_realloc", "_mem_free", "_free", "_malloc"]' \
-  -I "$DIR" \
-  $SOURCES \
+  -s "EXPORTED_FUNCTIONS=${EXPORTED_FUNCS}" \
+  $OBJ_FILES \
   -o "$OUTPUT_DIR/nec2_direct_single.js"
 
 # 컴파일 결과 확인 - 멀티스레딩 버전
@@ -154,9 +192,8 @@ else
     -s EXIT_RUNTIME=0 \
     -s ASSERTIONS=1 \
     -s EXPORT_ES6=1 \
-    -s EXPORTED_FUNCTIONS='["_wire", "_rdpat", "_main", "_load", "_zint", "_mem_alloc", "_mem_realloc", "_mem_free", "_free", "_malloc"]' \
-    -I "$DIR" \
-    $SOURCES \
+    -s "EXPORTED_FUNCTIONS=${EXPORTED_FUNCS}" \
+    $OBJ_FILES \
     -o "$OUTPUT_DIR/nec2_direct.js"
   
   if [ $? -eq 0 ]; then
