@@ -92,6 +92,7 @@ emcc \
   -s EXIT_RUNTIME=0 \
   -s ASSERTIONS=1 \
   -s EXPORT_ES6=1 \
+  -s EXPORTED_FUNCTIONS='["_wire", "_rdpat", "_main", "_load", "_zint", "_mem_alloc", "_mem_realloc", "_mem_free", "_free", "_malloc"]' \
   -I "$DIR" \
   $SOURCES \
   -o "$OUTPUT_DIR/nec2_direct.js"
@@ -112,6 +113,7 @@ emcc \
   -s EXIT_RUNTIME=0 \
   -s ASSERTIONS=1 \
   -s EXPORT_ES6=1 \
+  -s EXPORTED_FUNCTIONS='["_wire", "_rdpat", "_main", "_load", "_zint", "_mem_alloc", "_mem_realloc", "_mem_free", "_free", "_malloc"]' \
   -I "$DIR" \
   $SOURCES \
   -o "$OUTPUT_DIR/nec2_direct_single.js"
@@ -152,6 +154,7 @@ else
     -s EXIT_RUNTIME=0 \
     -s ASSERTIONS=1 \
     -s EXPORT_ES6=1 \
+    -s EXPORTED_FUNCTIONS='["_wire", "_rdpat", "_main", "_load", "_zint", "_mem_alloc", "_mem_realloc", "_mem_free", "_free", "_malloc"]' \
     -I "$DIR" \
     $SOURCES \
     -o "$OUTPUT_DIR/nec2_direct.js"
