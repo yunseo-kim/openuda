@@ -22,23 +22,44 @@ export class AntennaModel {
 
     /**
      * Add a new element to the antenna
-     * @param {Object} element The element to add with type, length, position, diameter
+     * @param {Object|string} elementOrType The element object or type string ('reflector', 'driven', 'director')
+     * @param {number} [length] Element length in mm (when using positional parameters)
+     * @param {number} [position] Element position in mm (when using positional parameters)
+     * @param {number} [_unused] Unused parameter for backward compatibility
+     * @param {number} [diameter] Element diameter in mm (when using positional parameters)
+     * @param {number} [_unused2] Unused parameter for backward compatibility
      */
-    addElement(element) {
+    addElement(elementOrType, length, position, _unused, diameter, _unused2) {
+        // Support both object format and positional parameters format for backward compatibility
+        let elementObj;
+        
+        if (typeof elementOrType === 'string') {
+            // Handle positional parameters format (used in tests)
+            elementObj = {
+                type: elementOrType,
+                length: length || 0,
+                position: position || 0,
+                diameter: diameter || 10
+            };
+        } else {
+            // Handle object format
+            elementObj = elementOrType || {};
+        }
+        
         this.elements.push({
-            type: element.type || 'director',       // reflector, driven, director
-            length: element.length || 0,            // mm
-            position: element.position || 0,        // mm (along boom)
-            diameter: element.diameter || 10,       // mm
+            type: elementObj.type || 'director',       // reflector, driven, director
+            length: elementObj.length || 0,            // mm
+            position: elementObj.position || 0,        // mm (along boom)
+            diameter: elementObj.diameter || 10,       // mm
             
             // Optional properties for advanced configurations
-            taper: element.taper || false,          // Whether element has tapered diameter
-            taperDiameters: element.taperDiameters || [],  // Diameters for tapered sections
-            taperLengths: element.taperLengths || [],      // Lengths for tapered sections
+            taper: elementObj.taper || false,          // Whether element has tapered diameter
+            taperDiameters: elementObj.taperDiameters || [],  // Diameters for tapered sections
+            taperLengths: elementObj.taperLengths || [],      // Lengths for tapered sections
             
             // Matching properties (for driven element)
-            matchingMethod: element.matchingMethod || 'none', // none, hairpin, gamma, etc.
-            matchingParameters: element.matchingParameters || {}
+            matchingMethod: elementObj.matchingMethod || 'none', // none, hairpin, gamma, etc.
+            matchingParameters: elementObj.matchingParameters || {}
         });
     }
 
