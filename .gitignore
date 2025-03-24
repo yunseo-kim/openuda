@@ -170,9 +170,10 @@ dist
 # SvelteKit build / generate output
 .svelte-kit
 
-### OpenUda 프로젝트 특정 제외 항목 ###
+### OpenUda 프로젝트 제외 항목 ###
 # 빌드 결과물
 /build/temp
+/src/nec2c/obj
 
 # 테스트 결과
 /test-results
