@@ -11,6 +11,16 @@ let isReady = false;
 let isOptimized = false;
 let modulePath = '';
 
+// NEC2C function wrappers - applying JavaScript naming conventions
+let necFunctions = {
+    addWireSegment: null,       // wire function: add wire segment
+    calculatePattern: null,     // rdpat function: calculate radiation pattern
+    setLoadParameters: null,    // load function: set impedance loading parameters
+    calculateImpedance: null,   // zint function: calculate impedance
+    runMain: null,              // main function: run main calculations
+    printOutput: null           // prnt function: handle output messages
+};
+
 // Genetic algorithm parameters
 const GA_CONFIG = {
     populationSize: 30,
@@ -39,20 +49,18 @@ self.onmessage = async function(event) {
             case 'addWireSegment':
             if (!checkReady(data.callbackId)) return;
             
-            const segResult = necModule.ccall(
-                'nec2_add_wire_segment',
-                'number',
-                ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'],
-                [
-                    data.params.x1, 
-                    data.params.y1, 
-                    data.params.z1, 
-                    data.params.x2, 
-                    data.params.y2, 
-                    data.params.z2, 
-                    data.params.radius, 
-                    data.params.segments
-                ]
+            const segResult = necFunctions.addWireSegment(
+                data.params.x1, 
+                data.params.y1, 
+                data.params.z1, 
+                data.params.x2, 
+                data.params.y2, 
+                data.params.z2, 
+                data.params.radius,
+                data.params.segments,
+                1.0,  // rdel - segment length ratio (default 1.0)
+                1.0,  // rrad - segment radius ratio (default 1.0)
+                1     // tag number (default 1)
             );
             
             postResult(data.callbackId, segResult);
@@ -62,7 +70,7 @@ self.onmessage = async function(event) {
             if (!checkReady(data.callbackId)) return;
             
             const freqResult = necModule.ccall(
-                'nec2_set_frequency',
+                'main',
                 'number',
                 ['number'],
                 [data.params.freqMhz]
@@ -74,18 +82,13 @@ self.onmessage = async function(event) {
             case 'calculateRadiationPattern':
             if (!checkReady(data.callbackId)) return;
             
-            const patternResult = necModule.ccall(
-                'nec2_calculate_radiation_pattern',
-                'number',
-                ['number', 'number', 'number', 'number', 'number', 'number'],
-                [
-                    data.params.thetaStart, 
-                    data.params.thetaEnd, 
-                    data.params.thetaSteps, 
-                    data.params.phiStart, 
-                    data.params.phiEnd, 
-                    data.params.phiSteps
-                ]
+            const patternResult = necFunctions.calculatePattern(
+                data.params.thetaStart, 
+                data.params.thetaEnd, 
+                data.params.thetaSteps, 
+                data.params.phiStart, 
+                data.params.phiEnd, 
+                data.params.phiSteps
             );
             
             postResult(data.callbackId, patternResult);
@@ -94,11 +97,13 @@ self.onmessage = async function(event) {
             case 'getGain':
             if (!checkReady(data.callbackId)) return;
             
-            const gainValue = necModule.ccall(
-                'nec2_get_gain',
-                'number',
-                ['number', 'number'],
-                [data.params.theta, data.params.phi]
+            const gainValue = necFunctions.calculatePattern(
+                data.params.theta, 
+                data.params.phi, 
+                1,  // theta steps = 1
+                0,  // phi start = 0
+                0,  // phi end = 0
+                1   // phi steps = 1
             );
             
             postResult(data.callbackId, gainValue);
@@ -110,11 +115,14 @@ self.onmessage = async function(event) {
             const impedanceResistancePtr = necModule._malloc(8); // double
             const impedanceReactancePtr = necModule._malloc(8); // double
             
-            const impedanceResult = necModule.ccall(
-                'nec2_calculate_impedance',
-                'number',
-                ['number', 'number'],
-                [impedanceResistancePtr, impedanceReactancePtr]
+            const impedanceResult = necFunctions.setLoadParameters(
+                data.params.loadType || 0,
+                data.params.tagNumber || 1,
+                data.params.segmentStart || 1,
+                data.params.segmentEnd || 1,
+                data.params.resistance || 0,
+                data.params.inductance || 0,
+                data.params.capacitance || 0
             );
             
             const resistance = necModule.getValue(impedanceResistancePtr, 'double');
@@ -133,27 +141,37 @@ self.onmessage = async function(event) {
             case 'runAnalysis':
             if (!checkReady(data.callbackId)) return;
             
+            // Allocate memory using direct module calls
             const gainPtr = necModule._malloc(8); // double
             const fbRatioPtr = necModule._malloc(8); // double
             const analysisResistancePtr = necModule._malloc(8); // double
             const analysisReactancePtr = necModule._malloc(8); // double
             
-            const analysisResult = necModule.ccall(
-                'nec2_run_analysis',
-                'number',
-                ['number', 'number', 'number', 'number'],
-                [gainPtr, fbRatioPtr, analysisResistancePtr, analysisReactancePtr]
-            );
+            // Prepare analysis parameters for main function call
+            const analysisParams = new Float64Array(4);
+            analysisParams[0] = data.params.frequency || 14.0; // MHz
+            analysisParams[1] = data.params.segments || 20;
+            analysisParams[2] = data.params.wireRadius || 0.001; // meters
+            analysisParams[3] = data.params.wireLength || 0.5; // meters
+            
+            // Allocate memory using direct module call
+            const analysisBuffer = necModule._malloc(analysisParams.length * 8);
+            necModule.HEAPF64.set(analysisParams, analysisBuffer / 8);
+            
+            // Call function with improved naming convention
+            const analysisResult = necFunctions.runMain(analysisBuffer / 8, [gainPtr, fbRatioPtr, analysisResistancePtr, analysisReactancePtr]);
             
             const gain = necModule.getValue(gainPtr, 'double');
             const fbRatio = necModule.getValue(fbRatioPtr, 'double');
             const analysisResistance = necModule.getValue(analysisResistancePtr, 'double');
             const analysisReactance = necModule.getValue(analysisReactancePtr, 'double');
             
+            // Free memory using direct module calls
             necModule._free(gainPtr);
             necModule._free(fbRatioPtr);
             necModule._free(analysisResistancePtr);
             necModule._free(analysisReactancePtr);
+            necModule._free(analysisBuffer);
             
             // Calculate VSWR assuming 50 ohm reference impedance
             const z0 = 50.0;
@@ -270,6 +288,28 @@ async function initializeModule() {
                 0x00, 0x00, 0x00, 0x00, 0x0b
             ]));
         
+        // Initialize NEC2C function wrappers with JavaScript naming convention
+        necFunctions.addWireSegment = necModule.cwrap('wire', 'number', [
+            'number', 'number', 'number', 'number', 'number', 'number', 
+            'number', 'number', 'number', 'number', 'number'
+        ]);
+        
+        necFunctions.calculatePattern = necModule.cwrap('rdpat', 'number', [
+            'number', 'number', 'number', 'number', 'number', 'number'
+        ]);
+        
+        necFunctions.setLoadParameters = necModule.cwrap('load', 'number', [
+            'number', 'number', 'number', 'number', 'number', 'number', 'number'
+        ]);
+        
+        necFunctions.calculateImpedance = necModule.cwrap('zint', 'number', ['number']);
+        
+        necFunctions.runMain = necModule.cwrap('main', 'number', ['number', 'array']);
+        
+        // Memory management functions will be called directly via necModule._malloc, necModule._free, etc.
+        
+        necFunctions.printOutput = necModule.cwrap('prnt', null, ['string']);
+        
         // NEC2 main program directly calls the main() function, so no separate initialization function call is needed
         isReady = true;
         
@@ -280,9 +320,9 @@ async function initializeModule() {
             success: isReady
         });
         
-        console.log(`NEC2 엔진 초기화 완료 (최적화: ${isOptimized ? '사용' : '미사용'})`);
+        console.log(`NEC2 engine initialization complete (Optimization: ${isOptimized ? 'Enabled' : 'Disabled'})`);
     } catch (error) {
-        console.error('워커에서 NEC2 모듈 초기화 실패:', error);
+        console.error('Failed to initialize NEC2 module in worker:', error);
         self.postMessage({ 
             type: 'ready',
             optimized: false,
@@ -349,11 +389,11 @@ function postError(callbackId, errorMessage) {
 function generateNEC2Input(options) {
     const lines = [];
     
-    // 주석 카드
+    // CM cards (Comment)
     lines.push('CM NEC2 Input File Generated by OpenUda');
     lines.push(`CM Frequency: ${options.frequency || 300} MHz`);
     
-    // 와이어 카드
+    // GW cards (Wire)
     if (options.wires && Array.isArray(options.wires)) {
         options.wires.forEach((wire, index) => {
             // GW tag segments x1 y1 z1 x2 y2 z2 radius
@@ -361,10 +401,10 @@ function generateNEC2Input(options) {
         });
     }
     
-    // 지오메트리 종료 카드
+    // GE card (End Geometry)
     lines.push('GE');
     
-    // 지면 카드
+    // GN card (Ground)
     const ground = options.ground || { type: 'free' };
     if (ground.type === 'perfect') {
         lines.push('GN 1');
@@ -374,14 +414,14 @@ function generateNEC2Input(options) {
         lines.push('GN -1');
     }
     
-    // 주파수 카드
+    // FR card (Frequency)
     lines.push(`FR 0 1 0 0 ${options.frequency || 300}`);
     
-    // 급전 카드
+    // EX card (Excitation)
     const excitation = options.excitation || { type: 'voltage', segment: 1, tag: 1 };
     lines.push(`EX 0 ${excitation.tag || 1} ${excitation.segment || 1} 0 1 0 0 0 0 0`);
     
-    // 방사 패턴 카드
+    // RP card (Radiation Pattern)
     const pattern = options.pattern || { 
         thetaStart: 0, thetaEnd: 180, thetaSteps: 19,
         phiStart: 0, phiEnd: 360, phiSteps: 37
@@ -440,7 +480,7 @@ function parseNEC2Output(outputData) {
             }
         }
         
-        // VSWR 계산 (50 ohm 기준)
+        // VSWR calculation (50 ohm reference)
         const r = result.impedance.resistance;
         const x = result.impedance.reactance;
         const z0 = 50;
@@ -518,9 +558,11 @@ async function runNEC2Simulation(options) {
         // Write input file to virtual file system
         necModule.FS.writeFile('input.nec', inputData);
         
-        // Execute NEC2
-        const result = necModule.ccall('main', 'number', ['number', 'array'], 
-            [4, ['nec2c', '-c', 'input.nec', 'output.nec']]);
+        // Execute NEC2 
+        const result = necFunctions.runMain(
+            4, // number of arguments
+            ['nec2c', '-c', 'input.nec', 'output.nec'] // argument array
+        );
         
         if (result !== 0) {
             console.warn(`NEC2 simulation return code: ${result}`);

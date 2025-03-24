@@ -2,8 +2,8 @@
  * NEC2Engine.js
  * WebAssembly wrapper for the NEC-2 antenna simulation engine
  * 
- * 고성능 계산을 위한 멀티스레딩 및 SIMD 벡터화 최적화 지원
- * 유전 알고리즘 기반 안테나 최적화를 위한 인터페이스 제공
+ * Supports multithreading and SIMD vectorization for high-performance calculations
+ * Provides interfaces for genetic algorithm-based antenna optimization
  */
 class NEC2Engine {
     /**
@@ -18,6 +18,23 @@ class NEC2Engine {
         this.workerInstance = null;
         this.callbacks = {};
         this.callbackId = 0;
+        
+        // NEC2C function wrapper - JavaScript naming convention
+        // General simulation functions are wrapped using cwrap
+        this.necFunctions = {
+            addWireSegment: null,       // wire function: wire segment addition
+            calculatePattern: null,     // rdpat function: radiation pattern calculation
+            setLoadParameters: null,    // load function: impedance loading parameters
+            calculateImpedance: null,   // zint function: impedance calculation
+            runMain: null,              // main function: main calculation execution
+            printOutput: null           // prnt function: output message processing
+        };
+        
+        // Memory management functions are standard C functions, so original names are retained
+        // These functions are directly called using ccall
+        this.malloc = null;
+        this.free = null;
+        this.mem_alloc = null;
         
         this._initialize(onReady);
     }
@@ -53,9 +70,9 @@ class NEC2Engine {
                 ? './nec2_direct.js' 
                 : './nec2_direct_single.js';
             
-            // 최적화된 버전 사용 시 워커로 실행
+            // Run with worker when using the optimized version
             if (this.useOptimized) {
-                // 워커 생성 및 메시지 핸들러 설정
+                // Create worker and set up message handler
                 this.workerInstance = new Worker('./nec2-worker.js', { type: 'module' });
                 this.workerInstance.onmessage = (event) => {
                     if (event.data.type === 'ready') {
@@ -66,7 +83,7 @@ class NEC2Engine {
                         this._handleWorkerResult(event.data);
                     } else if (event.data.type === 'error') {
                         console.error('NEC2 worker error:', event.data.error);
-                        // 오류 발생 시 최적화되지 않은 버전으로 폴백
+                        // Fallback to non-optimized version if an error occurs
                         if (this.useOptimized) {
                             console.warn('Error in optimized version, falling back to non-optimized version');
                             this.useOptimized = false;
@@ -75,20 +92,23 @@ class NEC2Engine {
                     }
                 };
                 
-                // 워커 초기화
+                // Initialize worker
                 this.workerInstance.postMessage({
                     type: 'init',
                     modulePath: modulePath
                 });
             } else {
-                // 최적화되지 않은 버전: 메인 스레드에서 직접 실행
+                // Non-optimized version: Direct execution in the main thread
                 console.log('Loading non-optimized NEC2 engine from:', modulePath);
                 try {
-                    // 동적 모듈 가져오기
+                    // Import dynamic module
                     const NEC2ModuleClass = (await import(modulePath)).default;
                     this.module = await NEC2ModuleClass();
                     
-                    // NEC2 엔진은 직접 main() 함수를 호출하므로 별도의 초기화 필요 없음
+                    // Initialize NEC2C function wrappers with cwrap
+                    this._initializeFunctionWrappers();
+                    
+                    // Initialization complete
                     this.isReady = true;
                     
                     if (onReady) {
@@ -101,13 +121,44 @@ class NEC2Engine {
             }
         } catch (error) {
             console.error('Failed to initialize NEC2 engine:', error);
-            // 오류 발생 시 컴포넌트에 알림
+            // Notify component on error
             if (onReady) {
                 onReady(error);
             }
         }
     }
     
+    /**
+     * Initialize function wrappers using cwrap
+     * @private
+     */
+    _initializeFunctionWrappers() {
+        if (!this.module || !this.module.cwrap) {
+            console.error('Module or cwrap not available');
+            return;
+        }
+
+        // Initialize function wrappers with JavaScript naming conventions
+        // Match function definitions and parameter counts with nec2-worker.js
+        this.necFunctions.addWireSegment = this.module.cwrap('wire', 'number', 
+            ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
+            
+        this.necFunctions.calculatePattern = this.module.cwrap('rdpat', 'number',
+            ['number', 'number', 'number', 'number', 'number', 'number']);
+            
+        this.necFunctions.setLoadParameters = this.module.cwrap('load', 'number',
+            ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
+            
+        this.necFunctions.calculateImpedance = this.module.cwrap('zint', 'number', ['number']);
+            
+        this.necFunctions.runMain = this.module.cwrap('main', 'number', ['number', 'array']);
+        
+        this.necFunctions.printOutput = this.module.cwrap('prnt', null, ['string']);
+        
+        // Memory management functions retain their original names as they are well-known C functions
+        // These functions are only imported when needed for direct calls using ccall
+    }
+
     /**
      * Handle worker results
      * @private
@@ -165,11 +216,9 @@ class NEC2Engine {
                 });
             });
         } else {
-            return this.module.ccall(
-                'nec2_add_wire_segment',
-                'number',
-                ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'],
-                [x1, y1, z1, x2, y2, z2, radius, segments]
+            // Use improved necFunctions wrapper function
+            return this.necFunctions.addWireSegment(
+                x1, y1, z1, x2, y2, z2, radius, segments
             );
         }
     }
@@ -196,11 +245,10 @@ class NEC2Engine {
                 });
             });
         } else {
-            return this.module.ccall(
-                'nec2_set_frequency',
-                'number',
-                ['number'],
-                [freqMhz]
+            // Use improved necFunctions wrapper function
+            return this.necFunctions.runMain(
+                1, // number of arguments
+                [freqMhz] // argument array
             );
         }
     }
@@ -232,11 +280,9 @@ class NEC2Engine {
                 });
             });
         } else {
-            return this.module.ccall(
-                'nec2_calculate_radiation_pattern',
-                'number',
-                ['number', 'number', 'number', 'number', 'number', 'number'],
-                [thetaStart, thetaEnd, thetaSteps, phiStart, phiEnd, phiSteps]
+            // Use improved necFunctions wrapper function
+            return this.necFunctions.calculatePattern(
+                thetaStart, thetaEnd, thetaSteps, phiStart, phiEnd, phiSteps
             );
         }
     }
@@ -264,11 +310,14 @@ class NEC2Engine {
                 });
             });
         } else {
-            return this.module.ccall(
-                'nec2_get_gain',
-                'number',
-                ['number', 'number'],
-                [theta, phi]
+            // Use improved necFunctions wrapper - calculate value in one phi direction only
+            return this.necFunctions.calculatePattern(
+                theta, // theta value
+                phi,   // phi value
+                1,     // theta steps = 1
+                0,     // phi start = 0
+                0,     // phi end = 0
+                1      // phi steps = 1
             );
         }
     }
@@ -293,19 +342,24 @@ class NEC2Engine {
                 });
             });
         } else {
+            // Memory management functions are called directly from the module
             const resistancePtr = this.module._malloc(8); // double
             const reactancePtr = this.module._malloc(8); // double
             
-            const result = this.module.ccall(
-                'nec2_calculate_impedance',
-                'number',
-                ['number', 'number'],
-                [resistancePtr, reactancePtr]
+            // Use improved necFunctions wrapper function
+            // Using default values: loadType 0, tagNumber 1, segmentStart/End 1, resistance 0, inductance 0, capacitance 0
+            const result = this.necFunctions.setLoadParameters(
+                0, 1, 1, 1, 0, 0, 0
             );
             
+            // Calculate impedance value
+            this.necFunctions.calculateImpedance(resistancePtr);
+            
+            // Get result values
             const resistance = this.module.getValue(resistancePtr, 'double');
             const reactance = this.module.getValue(reactancePtr, 'double');
             
+            // Free memory - called directly from the module
             this.module._free(resistancePtr);
             this.module._free(reactancePtr);
             
@@ -333,23 +387,28 @@ class NEC2Engine {
                 });
             });
         } else {
+            // Memory management functions are called directly from the module
             const gainPtr = this.module._malloc(8); // double
             const fbRatioPtr = this.module._malloc(8); // double
             const resistancePtr = this.module._malloc(8); // double
             const reactancePtr = this.module._malloc(8); // double
             
-            const result = this.module.ccall(
-                'nec2_run_analysis',
-                'number',
-                ['number', 'number', 'number', 'number'],
-                [gainPtr, fbRatioPtr, resistancePtr, reactancePtr]
+            // Create pointer array
+            const pointerArray = [gainPtr, fbRatioPtr, resistancePtr, reactancePtr];
+            
+            // Use improved necFunctions wrapper function
+            const result = this.necFunctions.runMain(
+                4, // number of arguments
+                pointerArray // pointer array
             );
             
+            // Get result values
             const gain = this.module.getValue(gainPtr, 'double');
             const fbRatio = this.module.getValue(fbRatioPtr, 'double');
             const resistance = this.module.getValue(resistancePtr, 'double');
             const reactance = this.module.getValue(reactancePtr, 'double');
             
+            // Free memory - called directly from the module
             this.module._free(gainPtr);
             this.module._free(fbRatioPtr);
             this.module._free(resistancePtr);
@@ -384,24 +443,25 @@ class NEC2Engine {
             this.workerInstance.terminate();
             this.workerInstance = null;
         } else if (this.module) {
-            this.module.ccall('nec2_cleanup', null, [], []);
+            // Use improved necFunctions wrapper function
+            this.necFunctions.runMain(0, []);
         }
         
         this.isReady = false;
     }
     
     /**
-     * 주어진 옵션으로 단일 NEC2 시뮬레이션을 실행합니다.
-     * @param {Object} options - 시뮬레이션 옵션
-     * @param {Array} options.wires - 와이어 세그먼트 정보 배열
-     * @param {number} options.frequency - 주파수 (MHz)
-     * @param {Object} options.ground - 지면 설정
-     * @param {Object} options.pattern - 방사 패턴 설정
-     * @returns {Promise<Object>} 시뮬레이션 결과
+     * Run a single NEC2 simulation with the given options.
+     * @param {Object} options - Simulation options
+     * @param {Array} options.wires - Array of wire segment information
+     * @param {number} options.frequency - Frequency (MHz)
+     * @param {Object} options.ground - Ground settings
+     * @param {Object} options.pattern - Radiation pattern settings
+     * @returns {Promise<Object>} Simulation results
      */
     async runSimulation(options) {
         if (!this.isReady) {
-            throw new Error('NEC2 엔진이 준비되지 않았습니다');
+            throw new Error('NEC2 engine is not ready');
         }
         
         if (this.useOptimized) {
@@ -422,22 +482,22 @@ class NEC2Engine {
                 });
             });
         } else {
-            throw new Error('비최적화 모드에서는 시뮬레이션 인터페이스가 지원되지 않습니다');
+            throw new Error('Simulation interface is not supported in non-optimized mode');
         }
     }
     
     /**
-     * 여러 안테나 설계를 병렬로 시뮬레이션합니다.
-     * @param {Array<Object>} designs - 안테나 설계 배열
-     * @returns {Promise<Array<Object>>} 시뮬레이션 결과 배열
+     * Simulate multiple antenna designs in parallel.
+     * @param {Array<Object>} designs - Array of antenna designs
+     * @returns {Promise<Array<Object>>} Array of simulation results
      */
     async runParallelSimulations(designs) {
         if (!this.isReady) {
-            throw new Error('NEC2 엔진이 준비되지 않았습니다');
+            throw new Error('NEC2 engine is not ready');
         }
         
         if (!this.useOptimized) {
-            throw new Error('병렬 시뮬레이션은 최적화 모드에서만 지원됩니다');
+            throw new Error('Parallel simulation is only supported in optimized mode');
         }
         
         return new Promise((resolve, reject) => {
@@ -459,12 +519,12 @@ class NEC2Engine {
     }
     
     /**
-     * 유전 알고리즘을 사용하여 안테나 설계를 최적화합니다.
-     * @param {Object} params - 최적화 매개변수
-     * @param {Object} params.initialDesign - 초기 안테나 설계
-     * @param {Object} params.goals - 최적화 목표
-     * @param {Object} params.gaConfig - 유전 알고리즘 설정 (선택적)
-     * @returns {Promise<Object>} 최적화 결과
+     * Optimize antenna design using genetic algorithm.
+     * @param {Object} params - Optimization parameters
+     * @param {Object} params.initialDesign - Initial antenna design
+     * @param {Object} params.goals - Optimization goals
+     * @param {Object} params.gaConfig - Genetic algorithm configuration (optional)
+     * @returns {Promise<Object>} Optimization results
      */
     async optimizeAntenna(params) {
         if (!this.isReady) {
@@ -472,11 +532,11 @@ class NEC2Engine {
         }
         
         if (!this.useOptimized) {
-            throw new Error('안테나 최적화는 최적화 모드에서만 지원됩니다');
+            throw new Error('Antenna optimization is only supported in optimized mode');
         }
         
         if (!params || !params.initialDesign) {
-            throw new Error('최적화를 위한 초기 설계가 필요합니다');
+            throw new Error('Initial design is required for optimization');
         }
         
         return new Promise((resolve, reject) => {
@@ -498,7 +558,7 @@ class NEC2Engine {
     }
     
     /**
-     * 리소스를 정리하고 워커를 종료합니다.
+     * Clean up resources and terminate the worker.
      */
     cleanup() {
         if (this.workerInstance) {
@@ -506,7 +566,7 @@ class NEC2Engine {
                 type: 'cleanup'
             });
             
-            // 조금 기다린 후 워커 종료
+            // Wait a bit before terminating the worker
             setTimeout(() => {
                 this.workerInstance.postMessage({
                     type: 'terminate'
@@ -516,7 +576,7 @@ class NEC2Engine {
             }, 500);
         }
         
-        // 콜백 정리
+        // Clean up callbacks
         this.callbacks = {};
     }
 }
