@@ -388,7 +388,8 @@ export class AntennaCalculator {
                 try {
                     // Calculate gain for all directions using NEC2C engine
                     const gainResult = await this.engine.calculateRadiationPattern(az, el);
-                    // Normalize using maximum gain (0-1 range)                   gain = Math.pow(10, (gainResult.gain - maxGain) / 20);
+                    // Normalize using maximum gain (0-1 range)
+                    gain = Math.pow(10, (gainResult.gain - maxGain) / 20);
                 } catch (error) {
                     console.error(`Error calculating radiation pattern at azimuth ${az} degrees, elevation ${el} degrees:`, error);
                 }

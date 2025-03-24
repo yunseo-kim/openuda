@@ -47,8 +47,22 @@ export class Optimizer {
      */
     async optimize(goal) {
         // Save original model to compare improvement
-        const originalModel = this.antennaModel.clone();
-        const originalPerf = await this.calculator.calculateAntennaPerformance(originalModel);
+        let originalModel;
+        let originalPerf;
+        
+        try {
+            originalModel = this.antennaModel.clone();
+            originalPerf = await this.calculator.calculateAntennaPerformance(originalModel);
+        } catch (error) {
+            console.error('Error calculating baseline performance:', error);
+            throw new Error('Failed to establish baseline performance for optimization');
+        }
+        
+        // Validate that original performance is reasonable before proceeding
+        if (!originalPerf || typeof originalPerf !== 'object' || isNaN(originalPerf.gain)) {
+            console.error('Invalid baseline performance results:', originalPerf);
+            throw new Error('Baseline performance calculation gave invalid results');
+        }
         
         // Create optimization constraints
         const constraints = this.createConstraints(originalModel);
@@ -201,19 +215,60 @@ export class Optimizer {
     createFitnessFunction(goal) {
         return async (parameters) => {
             try {
+                // Validate input parameters first
+                if (!parameters || !Array.isArray(parameters)) {
+                    console.error('Invalid parameters format:', parameters);
+                    return -Infinity; // Return worst possible fitness
+                }
+                
+                // Check if parameters have valid numeric values
+                const hasInvalidParameters = parameters.some(p => isNaN(p) || !isFinite(p));
+                if (hasInvalidParameters) {
+                    console.error('Parameters contain invalid numeric values:', parameters);
+                    return -Infinity;
+                }
+                
                 // Create a model with the current parameters
-                const testModel = this.createModelFromParameters(
-                    this.antennaModel, 
-                    parameters
-                );
+                let testModel;
+                try {
+                    testModel = this.createModelFromParameters(
+                        this.antennaModel, 
+                        parameters
+                    );
+                } catch (modelError) {
+                    console.error('Error creating model from parameters:', modelError);
+                    return -Infinity;
+                }
                 
                 // Calculate antenna performance using NEC2C engine
-                const performance = await this.calculator.calculateAntennaPerformance(testModel);
+                let performance;
+                try {
+                    performance = await this.calculator.calculateAntennaPerformance(testModel);
+                } catch (calcError) {
+                    console.error('Error calculating antenna performance:', calcError);
+                    // Use a specific negative value to indicate calculation errors
+                    return -100;
+                }
                 
                 // Validate performance results
                 if (!performance || typeof performance !== 'object') {
                     console.warn('Invalid performance results:', performance);
-                    return -1; // Invalid result
+                    return -10; // Invalid result but not as bad as a complete error
+                }
+                
+                // Verify all required properties exist and are valid numbers
+                const requiredProps = ['gain', 'fbRatio', 'vswr', 'impedance'];
+                for (const prop of requiredProps) {
+                    if (prop === 'impedance') {
+                        if (!performance.impedance || typeof performance.impedance !== 'object' ||
+                            isNaN(performance.impedance.r) || isNaN(performance.impedance.x)) {
+                            console.warn(`Invalid impedance value in performance:`, performance.impedance);
+                            return -5;
+                        }
+                    } else if (isNaN(performance[prop]) || !isFinite(performance[prop])) {
+                        console.warn(`Invalid ${prop} value in performance:`, performance[prop]);
+                        return -5;
+                    }
                 }
                 
                 // Apply penalty for abnormal performance indicators
