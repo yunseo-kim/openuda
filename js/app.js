@@ -15,20 +15,39 @@ import { Presets } from './modules/presets.js';
 // Main application class
 class App {
     constructor() {
-        // Initialize main components
-        this.antennaModel = new AntennaModel();
-        this.calculator = new AntennaCalculator();
-        this.patternVisualizer = new PatternVisualizer();
-        this.chartRenderer = new ChartRenderer();
-        this.fileIO = new FileIO(this.antennaModel);
-        this.optimizer = new Optimizer(this.antennaModel, this.calculator);
-        this.ui = new UI(this);
+        try {
+            // Initialize main components
+            console.log('Creating antenna model...');
+            this.antennaModel = new AntennaModel();
+            
+            console.log('Initializing calculator...');
+            this.calculator = new AntennaCalculator();
+            
+            console.log('Setting up pattern visualizer...');
+            this.patternVisualizer = new PatternVisualizer();
+            
+            console.log('Setting up chart renderer...');
+            this.chartRenderer = new ChartRenderer();
+            
+            console.log('Initializing file IO...');
+            this.fileIO = new FileIO(this.antennaModel);
+            
+            console.log('Setting up optimizer...');
+            this.optimizer = new Optimizer(this.antennaModel, this.calculator);
+            
+            console.log('Initializing UI...');
+            this.ui = new UI(this);
 
-        // Setup event listeners
-        this.setupEventListeners();
-        
-        // Initialize the application
-        this.init();
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            // Initialize the application
+            this.init();
+            
+        } catch (error) {
+            console.error('Error during application initialization:', error);
+            throw error; // Re-throw to be caught by the DOMContentLoaded handler
+        }
     }
 
     init() {
@@ -48,89 +67,171 @@ class App {
     }
 
     setupEventListeners() {
+        console.log('Setting up event listeners...');
+        
         // Tab navigation
         document.querySelectorAll('.tab-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const tabId = e.currentTarget.getAttribute('data-tab');
                 this.ui.switchTab(tabId);
+                console.log(`Switched to tab: ${tabId}`);
             });
         });
 
         // Run analysis button
-        document.getElementById('run-analysis-btn').addEventListener('click', () => {
-            this.runAnalysis();
-        });
+        const runAnalysisBtn = document.getElementById('run-analysis-btn');
+        if (runAnalysisBtn) {
+            runAnalysisBtn.addEventListener('click', () => {
+                console.log('Run analysis button clicked');
+                this.runAnalysis();
+            });
+        } else {
+            console.error('Run analysis button not found in DOM');
+        }
 
         // Run frequency sweep button
-        document.getElementById('run-sweep-btn').addEventListener('click', () => {
-            this.runFrequencySweep();
-        });
+        const runSweepBtn = document.getElementById('run-sweep-btn');
+        if (runSweepBtn) {
+            runSweepBtn.addEventListener('click', () => {
+                console.log('Run frequency sweep button clicked');
+                this.runFrequencySweep();
+            });
+        } else {
+            console.error('Run sweep button not found in DOM');
+        }
 
         // Calculate pattern button
-        document.getElementById('calculate-pattern-btn').addEventListener('click', () => {
-            this.calculatePattern();
-        });
+        const calculatePatternBtn = document.getElementById('calculate-pattern-btn');
+        if (calculatePatternBtn) {
+            calculatePatternBtn.addEventListener('click', () => {
+                console.log('Calculate pattern button clicked');
+                this.calculatePattern();
+            });
+        } else {
+            console.error('Calculate pattern button not found in DOM');
+        }
 
         // Optimization button
-        document.getElementById('optimize-btn').addEventListener('click', () => {
-            this.runOptimization();
-        });
+        const optimizeBtn = document.getElementById('optimize-btn');
+        if (optimizeBtn) {
+            optimizeBtn.addEventListener('click', () => {
+                console.log('Optimize button clicked');
+                this.runOptimization();
+            });
+        } else {
+            console.error('Optimize button not found in DOM');
+        }
 
         // Preset button
-        document.getElementById('load-preset-btn').addEventListener('click', () => {
-            this.ui.showModal('presets-modal');
-        });
+        const loadPresetBtn = document.getElementById('load-preset-btn');
+        if (loadPresetBtn) {
+            loadPresetBtn.addEventListener('click', () => {
+                console.log('Load preset button clicked');
+                this.ui.showModal('presets-modal');
+            });
+        } else {
+            console.error('Load preset button not found in DOM');
+        }
 
         // Preset selection in modal
         document.querySelectorAll('.preset-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const presetId = e.currentTarget.getAttribute('data-preset');
+                console.log(`Loading preset: ${presetId}`);
                 this.loadPreset(presetId);
                 this.ui.hideModal('presets-modal');
             });
         });
 
         // Import button
-        document.getElementById('import-btn').addEventListener('click', () => {
-            this.ui.showModal('import-modal');
-        });
+        const importBtn = document.getElementById('import-btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                console.log('Import button clicked');
+                this.ui.showModal('import-modal');
+            });
+        } else {
+            console.error('Import button not found in DOM');
+        }
 
         // Import submit button
-        document.getElementById('import-submit-btn').addEventListener('click', () => {
-            this.importAntenna();
-        });
+        const importSubmitBtn = document.getElementById('import-submit-btn');
+        if (importSubmitBtn) {
+            importSubmitBtn.addEventListener('click', () => {
+                console.log('Import submit button clicked');
+                this.importAntenna();
+            });
+        } else {
+            console.error('Import submit button not found in DOM');
+        }
 
         // Export button
-        document.getElementById('export-btn').addEventListener('click', () => {
-            this.prepareExport();
-        });
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                console.log('Export button clicked');
+                this.prepareExport();
+            });
+        } else {
+            console.error('Export button not found in DOM');
+        }
 
         // Copy export button
-        document.getElementById('copy-export-btn').addEventListener('click', () => {
-            this.copyExportToClipboard();
-        });
+        const copyExportBtn = document.getElementById('copy-export-btn');
+        if (copyExportBtn) {
+            copyExportBtn.addEventListener('click', () => {
+                console.log('Copy export button clicked');
+                this.copyExportToClipboard();
+            });
+        } else {
+            console.error('Copy export button not found in DOM');
+        }
 
         // Download export button
-        document.getElementById('download-export-btn').addEventListener('click', () => {
-            this.downloadExport();
-        });
+        const downloadExportBtn = document.getElementById('download-export-btn');
+        if (downloadExportBtn) {
+            downloadExportBtn.addEventListener('click', () => {
+                console.log('Download export button clicked');
+                this.downloadExport();
+            });
+        } else {
+            console.error('Download export button not found in DOM');
+        }
 
         // Add element button
-        document.getElementById('add-element').addEventListener('click', () => {
-            this.addElement();
-        });
+        const addElementBtn = document.getElementById('add-element');
+        if (addElementBtn) {
+            addElementBtn.addEventListener('click', () => {
+                console.log('Add element button clicked');
+                this.addElement();
+            });
+        } else {
+            console.error('Add element button not found in DOM');
+        }
 
         // Reset view button for 3D pattern
-        document.getElementById('reset-view-btn').addEventListener('click', () => {
-            this.patternVisualizer.resetView();
-        });
+        const resetViewBtn = document.getElementById('reset-view-btn');
+        if (resetViewBtn) {
+            resetViewBtn.addEventListener('click', () => {
+                console.log('Reset view button clicked');
+                this.patternVisualizer.resetView();
+            });
+        } else {
+            console.error('Reset view button not found in DOM');
+        }
 
         // Change colormap for 3D pattern
-        document.getElementById('pattern-colormap').addEventListener('change', (e) => {
-            this.patternVisualizer.updateColorMap(e.target.value);
-        });
+        const patternColormap = document.getElementById('pattern-colormap');
+        if (patternColormap) {
+            patternColormap.addEventListener('change', (e) => {
+                console.log(`Changed colormap to: ${e.target.value}`);
+                this.patternVisualizer.updateColorMap(e.target.value);
+            });
+        } else {
+            console.error('Pattern colormap select not found in DOM');
+        }
 
         // Center frequency change
         document.getElementById('center-frequency').addEventListener('change', (e) => {
@@ -229,14 +330,23 @@ class App {
     }
 
     async runAnalysis() {
+        console.log('Running antenna analysis...');
         this.ui.showLoading('Calculating antenna performance...');
         
         try {
             // Allow UI to update before starting calculation
             await new Promise(resolve => setTimeout(resolve, 50));
             
+            // Check if calculator is ready
+            if (!this.calculator.isReady) {
+                console.log('Waiting for calculator engine to initialize...');
+                await this.calculator._waitForEngine();
+            }
+            
             // Run the analysis
+            console.log('Starting analysis with model:', this.antennaModel);
             const results = await this.calculator.calculateAntennaPerformance(this.antennaModel);
+            console.log('Analysis results:', results);
             
             // Update the results on the UI
             this.ui.updateResults(results);
@@ -246,7 +356,7 @@ class App {
         } catch (error) {
             console.error('Analysis error:', error);
             this.ui.hideLoading();
-            this.ui.showNotification('Error during analysis', true);
+            this.ui.showNotification('Error during analysis: ' + error.message, true);
         }
     }
 
@@ -441,5 +551,17 @@ class App {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new App();
+    try {
+        console.log('Initializing OpenUda application...');
+        window.app = new App();
+        console.log('OpenUda application successfully initialized');
+    } catch (error) {
+        console.error('Failed to initialize application:', error);
+        // Display error on UI if possible
+        const statusMessage = document.getElementById('status-message');
+        if (statusMessage) {
+            statusMessage.textContent = 'Initialization error';
+            statusMessage.style.color = 'var(--error-color)';
+        }
+    }
 });

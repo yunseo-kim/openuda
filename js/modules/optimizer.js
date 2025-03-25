@@ -125,25 +125,44 @@ export class Optimizer {
      * @returns {number} Balanced metric value
      */
     calculateBalancedMetric(performance) {
-        // Input validation
-        if (!performance || typeof performance !== 'object') return -1;
-        if (isNaN(performance.gain) || isNaN(performance.fbRatio) || isNaN(performance.vswr)) return -1;
+        // Input validation with detailed error logging
+        if (!performance || typeof performance !== 'object') {
+            console.error('Invalid performance object:', performance);
+            return -1;
+        }
         
-        // Normalized VSWR (1 is ideal, higher values are worse)
-        const vswrNorm = Math.min(3, Math.max(1, performance.vswr) - 1) / 3;
+        // Check for missing or invalid properties
+        const requiredProps = ['gain', 'fbRatio', 'vswr'];
+        for (const prop of requiredProps) {
+            if (prop in performance === false || isNaN(performance[prop])) {
+                console.error(`Missing or invalid ${prop} value:`, performance[prop]);
+                return -1;
+            }
+        }
+        
+        // Normalize VSWR (1 is ideal, higher values are worse)
+        // Limit max VSWR influence to prevent extreme values from dominating
+        const vswr = performance.vswr;
+        const vswrNorm = Math.min(3, Math.max(1, vswr) - 1) / 3;
         
         // Normalized gain (maximum reference is 15dBi)
-        const gainNorm = Math.min(15, Math.max(0, performance.gain)) / 15;
+        const gain = performance.gain;
+        const gainNorm = Math.min(15, Math.max(0, gain)) / 15;
         
         // Normalized front-to-back ratio (maximum reference is 20dB)
-        const fbRatioNorm = Math.min(20, Math.max(0, performance.fbRatio)) / 20;
+        const fbRatio = performance.fbRatio;
+        const fbRatioNorm = Math.min(20, Math.max(0, fbRatio)) / 20;
         
         // Apply performance metric weights
-        return (
+        const balancedMetric = (
             (0.4 * gainNorm) +                 // 40% gain weight
             (0.4 * fbRatioNorm) +              // 40% front-to-back ratio weight
             (0.2 * (1 - vswrNorm))             // 20% VSWR weight (inverted so lower is better)
         ) * 10; // Scale to 0-10 range
+        
+        console.log(`Balanced metric: ${balancedMetric.toFixed(2)} (Gain: ${gain.toFixed(2)}dBi, F/B: ${fbRatio.toFixed(2)}dB, VSWR: ${vswr.toFixed(2)})`);
+        
+        return balancedMetric;
     }
 
     /**
@@ -288,38 +307,67 @@ export class Optimizer {
                     case 'maxGain':
                         // Maximize gain
                         fitness = performance.gain;
+                        
+                        // Apply penalties for bad VSWR or low F/B ratio
+                        if (performance.vswr > 3.0) {
+                            // Significant VSWR penalty proportional to how bad it is
+                            const vswrPenalty = Math.min(0.8, (performance.vswr - 3.0) * 0.1);  
+                            fitness *= (1 - vswrPenalty);
+                            console.log(`VSWR penalty applied: ${vswrPenalty.toFixed(2)}, adjusted fitness: ${fitness.toFixed(2)}`);
+                        }
+                        
                         // Bonus if gain is positive and VSWR is in a reasonable range
                         if (performance.gain > 0 && performance.vswr < 2.0) {
                             fitness *= 1.1; // 10% bonus
+                            console.log(`Gain optimization bonus applied, fitness: ${fitness.toFixed(2)}`);
                         }
                         break;
                         
                     case 'maxFBRatio':
-                        // Maximize front-to-back ratio
-                        fitness = performance.fbRatio;
+                        // Maximize front-to-back ratio with safeguards
+                        fitness = Math.max(0, performance.fbRatio); // Ensure non-negative
+                        
+                        // Penalty for extremely low gain - ensures usable antenna
+                        if (performance.gain < 0) {
+                            fitness *= 0.5; // 50% penalty for negative gain
+                            console.log(`Low gain penalty for F/B optimization, adjusted fitness: ${fitness.toFixed(2)}`);
+                        }
+                        
                         // Bonus if F/B ratio is high with good gain and VSWR
                         if (performance.fbRatio > 10 && performance.gain > 5 && performance.vswr < 2.5) {
                             fitness *= 1.1;
+                            console.log(`F/B ratio optimization bonus applied, fitness: ${fitness.toFixed(2)}`);
                         }
                         break;
                         
                     case 'minVSWR':
                         // Minimize VSWR (ideally 1.0)
-                        // Transform to a maximization problem
-                        fitness = 15 / (performance.vswr + 0.2);
+                        // Transform to a maximization problem with protection against division by zero
+                        const safeVSWR = Math.max(1.01, performance.vswr);
+                        fitness = 15 / (safeVSWR + 0.2);
+                        
+                        // Smaller penalty for very low gain
+                        if (performance.gain < 0) {
+                            fitness *= 0.7;
+                            console.log(`Low gain penalty for VSWR optimization, adjusted fitness: ${fitness.toFixed(2)}`);
+                        }
+                        
                         // Bonus if VSWR is very low and gain is reasonable
                         if (performance.vswr < 1.5 && performance.gain > 0) {
                             fitness *= 1.15;
+                            console.log(`VSWR optimization bonus applied, fitness: ${fitness.toFixed(2)}`);
                         }
                         break;
                         
                     case 'balancedPerformance':
                         // Balanced performance metric
                         fitness = this.calculateBalancedMetric(performance);
+                        // No need for additional bonuses as the metric already balances all factors
                         break;
                         
                     default:
                         // Default to maximizing gain
+                        console.warn(`Unknown optimization goal: ${goal}, defaulting to gain optimization`);
                         fitness = performance.gain;
                 }
                 
@@ -404,13 +452,30 @@ export class Optimizer {
      * @returns {object} Optimization results
      */
     async runGeneticAlgorithm(constraints, fitnessFunction) {
-        const { lengthConstraints, spacingConstraints } = constraints;
+        console.log('Starting genetic algorithm optimization with the following parameters:');
+        console.log(`- Population size: ${this.populationSize}`);
+        console.log(`- Maximum generations: ${this.maxGenerations}`);
+        console.log(`- Mutation rate: ${this.mutationRate}`);
+        console.log(`- Crossover rate: ${this.crossoverRate}`);
+        console.log(`- Elitism: ${this.elitism} individuals`);
+        
+        // Extract constraints components
+        const { elementLengths: lengthConstraints, elementPositions: spacingConstraints } = constraints;
+        
+        // Verify constraints are valid
+        if (!lengthConstraints || !Array.isArray(lengthConstraints) || lengthConstraints.length === 0) {
+            console.error('Invalid length constraints:', lengthConstraints);
+            throw new Error('Invalid length constraints for optimization');
+        }
         
         // Initialize population
+        console.log('Initializing population...');
         let population = this.initializePopulation(constraints);
+        console.log(`Created initial population with ${population.length} individuals`);
         
         // Batch size for parallel computation (distributing NEC2C engine load)
         const batchSize = 5; // Process 5 individuals at a time
+        console.log(`Using batch size of ${batchSize} for parallel evaluation`);
         
         // Evaluate initial population in batches
         let fitnessValues = [];
@@ -436,10 +501,14 @@ export class Optimizer {
         
         // Generation evolution
         const generationHistory = [];
+        console.log(`Initial best fitness: ${bestFitness.toFixed(4)}`);
         
         // Track generations without improvement (early stopping condition)
         let stagnantGenerations = 0;
         const maxStagnantGenerations = 5; // Consider early stopping if no improvement for 5 generations
+        
+        // Store start time for performance tracking
+        const startTime = Date.now();
         
         // Execute generational evolution
         for (let gen = 0; gen < this.maxGenerations; gen++) {
@@ -489,7 +558,7 @@ export class Optimizer {
                     // Mutation
                     this.mutate(offspring, constraints);
                     
-                        // Add offspring to population
+                    // Add offspring to population
                     newPopulation.push(offspring);
                 } catch (error) {
                     console.warn('Error creating offspring:', error);
@@ -530,13 +599,28 @@ export class Optimizer {
                 stagnantGenerations++;
             }
             
-            // Log progress
-            console.log(`Generation ${gen+1}/${this.maxGenerations}, best fitness: ${bestFitness.toFixed(2)}, average: ${averageFitness.toFixed(2)}`);
+            // Calculate and log generation statistics
+            const minFitness = Math.min(...newValidFitnessValues.filter(v => v > -50));
+            const diversityMetric = newValidFitnessValues.filter(v => v > -50).length / population.length;
+            
+            // Log progress with enhanced information
+            console.log(`Generation ${gen+1}/${this.maxGenerations}:`);
+            console.log(`- Best fitness: ${bestFitness.toFixed(4)}`);
+            console.log(`- Average fitness: ${averageFitness.toFixed(4)}`);
+            console.log(`- Min fitness: ${minFitness.toFixed(4)}`);
+            console.log(`- Population diversity: ${(diversityMetric * 100).toFixed(1)}%`);
+            console.log(`- Stagnant generations: ${stagnantGenerations}`);
             
             // Early termination condition: no improvement for several generations
             if (stagnantGenerations >= maxStagnantGenerations && gen > this.maxGenerations / 2) {
                 console.log(`No improvement for ${maxStagnantGenerations} generations, terminating optimization early`);
                 break;
+            }
+            
+            // Log elapsed time every few generations
+            if (gen % 5 === 0 || gen === this.maxGenerations - 1) {
+                const elapsedTime = (Date.now() - startTime) / 1000;
+                console.log(`Time elapsed: ${elapsedTime.toFixed(2)} seconds`);
             }
         }
         
@@ -552,10 +636,17 @@ export class Optimizer {
             validSolutions: finalValidValues.length
         });
         
+        // Calculate total optimization time
+        const totalTime = (Date.now() - startTime) / 1000;
+        console.log(`Optimization completed in ${totalTime.toFixed(2)} seconds`);
+        console.log(`Final best fitness: ${bestFitness.toFixed(4)}`);
+        
         return {
             bestParameters: bestIndividual,
             bestFitness: bestFitness,
-            generations: generationHistory
+            generations: generationHistory,
+            optimizationTime: totalTime,
+            terminationReason: stagnantGenerations >= maxStagnantGenerations ? 'early_convergence' : 'max_generations'
         };
     }
 

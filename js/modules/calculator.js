@@ -31,12 +31,34 @@ export class AntennaCalculator {
      */
     async _initEngine() {
         try {
+            console.log('Starting NEC2C engine initialization...');
+            // Try to use optimized engine first, with fallback
             this.engine = new NEC2Engine(true, () => {
                 this.isReady = true;
                 console.log('NEC2C engine initialization complete');
             });
+            
+            // Set a timeout to catch stalled initialization
+            setTimeout(() => {
+                if (!this.isReady) {
+                    console.warn('NEC2C engine initialization taking longer than expected...');
+                }
+            }, 3000);
+            
         } catch (error) {
             console.error('NEC2C engine initialization failed:', error);
+            
+            // Try to initialize with non-optimized engine if optimized failed
+            try {
+                console.log('Retrying with non-optimized engine...');
+                this.engine = new NEC2Engine(false, () => {
+                    this.isReady = true;
+                    console.log('NEC2C engine initialization complete (non-optimized)');
+                });
+            } catch (fallbackError) {
+                console.error('Fallback engine initialization also failed:', fallbackError);
+                throw new Error('Failed to initialize NEC2 engine: ' + fallbackError.message);
+            }
         }
     }
     
@@ -47,11 +69,26 @@ export class AntennaCalculator {
     async _waitForEngine() {
         if (this.isReady) return;
         
-        return new Promise(resolve => {
+        console.log('Waiting for NEC2C engine to be ready...');
+        
+        return new Promise((resolve, reject) => {
+            const maxWaitTime = 15000; // 15 seconds max wait time
+            const startTime = Date.now();
+            
             const checkInterval = setInterval(() => {
                 if (this.isReady) {
                     clearInterval(checkInterval);
+                    console.log('NEC2C engine is now ready');
                     resolve();
+                    return;
+                }
+                
+                // Check if we've waited too long
+                if (Date.now() - startTime > maxWaitTime) {
+                    clearInterval(checkInterval);
+                    const errorMsg = 'Timeout waiting for NEC2C engine initialization';
+                    console.error(errorMsg);
+                    reject(new Error(errorMsg));
                 }
             }, 100);
         });
@@ -90,57 +127,108 @@ export class AntennaCalculator {
      * @returns {object} Results including gain, F/B ratio, impedance, VSWR, etc.
      */
     async calculateAntennaPerformance(antennaModel, frequency = null) {
-        // Wait for the engine to be ready
-        await this._waitForEngine();
-        
-        // Use model center frequency (if not specified)
-        const freq = frequency || antennaModel.centerFrequency;
-        
-        // Return default values if there are no elements
-        if (!antennaModel.elements || antennaModel.elements.length === 0) {
-            return {
-                gain: 0,
-                fbRatio: 0,
-                impedance: { r: 0, x: 0 },
-                vswr: 999,
-                beamwidth: 360,
-                frequency: freq
-            };
-        }
-        
         try {
+            // Wait for the engine to be ready
+            await this._waitForEngine();
+            
+            // Use model center frequency (if not specified)
+            const freq = frequency || antennaModel.centerFrequency;
+            
+            // Validate frequency
+            if (!freq || freq <= 0) {
+                throw new Error('Invalid frequency value. Must be positive.');
+            }
+            
+            // Return default values if there are no elements
+            if (!antennaModel.elements || antennaModel.elements.length === 0) {
+                console.log('Calculating with empty model - returning default values');
+                return {
+                    gain: 0,
+                    fbRatio: 0,
+                    impedance: { r: 0, x: 0 },
+                    vswr: 999,
+                    beamwidth: 360,
+                    frequency: freq
+                };
+            }
+            
+            // Validate model structure
+            if (!antennaModel.elements.every(el => el.type && el.length && typeof el.position !== 'undefined' && el.diameter)) {
+                throw new Error('Invalid antenna model: elements missing required properties');
+            }
+            console.log(`Calculating performance at ${freq} MHz`);
+            
             // Convert antenna model to NEC2 format
             const necModel = this._convertModelToNEC(antennaModel, freq);
             
             // Initialize NEC2 engine
+            console.log('Resetting NEC2 engine...');
             await this.engine.reset();
             
             // Add elements
+            console.log(`Adding ${necModel.elements.length} elements to simulation...`);
             for (const element of necModel.elements) {
                 // Driven element is centered, others extend half length in both directions
                 const halfLength = element.length / 2;
+                const segments = Math.max(3, Math.floor(element.length / 100)); // Minimum 3 segments
                 
-                await this.engine.addWireSegment(
-                    element.position, -halfLength, 0,  // Start point (x, y, z)
-                    element.position, halfLength, 0,   // End point (x, y, z)
-                    element.diameter / 2,              // Radius
-                    Math.max(3, Math.floor(element.length / 100)) // Number of segments (minimum 3)
-                );
+                try {
+                    await this.engine.addWireSegment(
+                        element.position, -halfLength, 0,  // Start point (x, y, z)
+                        element.position, halfLength, 0,   // End point (x, y, z)
+                        element.diameter / 2,              // Radius
+                        segments // Number of segments
+                    );
+                } catch (elemError) {
+                    console.error(`Error adding element at position ${element.position}:`, elemError);
+                    throw new Error(`Failed to add element at position ${element.position}: ${elemError.message}`);
+                }
             }
             
             // Add feed point to driven element
             const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
             if (drivenIndex !== -1) {
                 const drivenElement = necModel.elements[drivenIndex];
-                // Add feed point to the center of the driven element (card 5)
-                await this.engine.addExcitation(drivenIndex + 1, Math.floor(Math.max(3, Math.floor(drivenElement.length / 100)) / 2));
+                const segments = Math.max(3, Math.floor(drivenElement.length / 100));
+                const segmentIndex = Math.floor(segments / 2); // Center segment
+                
+                console.log(`Adding feed point to driven element (index ${drivenIndex}, segment ${segmentIndex})`);
+                try {
+                    // Add feed point to the center of the driven element (card 5)
+                    await this.engine.addExcitation(drivenIndex + 1, segmentIndex);
+                } catch (excitError) {
+                    console.error('Error adding excitation:', excitError);
+                    throw new Error(`Failed to add excitation: ${excitError.message}`);
+                }
+            } else {
+                console.warn('No driven element found in antenna model');
+                throw new Error('Antenna must have a driven element for analysis');
             }
             
             // Set frequency
-            await this.engine.setFrequency(freq);
+            console.log(`Setting frequency to ${freq} MHz`);
+            try {
+                await this.engine.setFrequency(freq);
+            } catch (freqError) {
+                console.error('Error setting frequency:', freqError);
+                throw new Error(`Failed to set frequency: ${freqError.message}`);
+            }
             
             // Run analysis
-            const result = await this.engine.runAnalysis();
+            console.log('Running NEC2 analysis...');
+            let result;
+            try {
+                result = await this.engine.runAnalysis();
+                console.log('Analysis completed successfully');
+            } catch (analysisError) {
+                console.error('Error running analysis:', analysisError);
+                throw new Error(`Analysis execution failed: ${analysisError.message}`);
+            }
+            
+            if (!result || !result.impedance) {
+                console.error('Invalid result returned from analysis:', result);
+                throw new Error('Analysis returned invalid data');
+            }
             
             // Extract impedance
             const impedance = {
@@ -151,20 +239,29 @@ export class AntennaCalculator {
             // Calculate VSWR
             const vswr = this.calculateVSWR(result.impedance);
             
-            // Return results
-            return {
-                gain: result.gain,
-                fbRatio: result.fbRatio,
+            const performanceResult = {
+                gain: result.gain || 0,
+                fbRatio: result.fbRatio || 0,
                 impedance: impedance,
                 vswr: vswr,
                 beamwidth: this._calculateBeamwidth(result),
                 frequency: freq
             };
+            
+            console.log('Calculation results:', performanceResult);
+            return performanceResult;
         } catch (error) {
             console.error('Error calculating antenna performance:', error);
+            // Generate a more detailed error for debug purposes
+            let errorDetails = error.message;
+            if (error.stack) {
+                console.error('Stack trace:', error.stack);
+            }
+            
             return {
-                error: 'Simulation failed: ' + error.message,
-                frequency: freq
+                error: 'Simulation failed: ' + errorDetails,
+                frequency: freq,
+                success: false
             };
         }
     }
@@ -196,83 +293,131 @@ export class AntennaCalculator {
      * @returns {object} Results including arrays of frequency, gain, vswr, etc.
      */
     async calculateFrequencySweep(antennaModel, startFreq, endFreq, steps) {
-        // Wait for the engine to be ready
-        await this._waitForEngine();
-        
-        const results = {
-            frequencies: [],
-            gains: [],
-            fbRatios: [],
-            vswrs: [],
-            impedances: []
-        };
-        
-        // 안테나 모델을 NEC2 형식으로 초기 변환
-        const necModel = this._convertModelToNEC(antennaModel, startFreq);
-        
-        // 요소 설정 (한 번만 수행)
-        await this.engine.reset();
-        
-        // 요소 추가
-        for (const element of necModel.elements) {
-            const halfLength = element.length / 2;
-            await this.engine.addWireSegment(
-                element.position, -halfLength, 0,  // Start point (x, y, z)
-                element.position, halfLength, 0,   // End point (x, y, z)
-                element.diameter / 2,              // Radius
-                Math.max(3, Math.floor(element.length / 100)) // Number of segments (minimum 3)
-            );
-        }
-        
-        // Add feed point to driven element
-        const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
-        if (drivenIndex !== -1) {
-            const drivenElement = necModel.elements[drivenIndex];
-            // Add feed point to the center of the driven element (card 5)
-            await this.engine.addExcitation(drivenIndex + 1, Math.floor(Math.max(3, Math.floor(drivenElement.length / 100)) / 2));
-        }
-        
-        // Create frequency points
-        const freqStep = (endFreq - startFreq) / (steps - 1);
-        
-        // Calculate performance at each frequency
-        for (let i = 0; i < steps; i++) {
-            const frequency = startFreq + (freqStep * i);
-            results.frequencies.push(frequency);
+        try {
+            // Wait for the engine to be ready
+            await this._waitForEngine();
             
-            try {
-                // Set frequency (keeping the same geometry)
-                await this.engine.setFrequency(frequency);
+            console.log(`Starting frequency sweep from ${startFreq} to ${endFreq} MHz with ${steps} steps`);
+            
+            const results = {
+                frequencies: [],
+                gains: [],
+                fbRatios: [],
+                vswrs: [],
+                impedances: []
+            };
+            
+            // 안테나 모델을 NEC2 형식으로 초기 변환
+            const necModel = this._convertModelToNEC(antennaModel, startFreq);
+            
+            // 요소 설정 (한 번만 수행)
+            console.log('Resetting NEC2 engine for frequency sweep...');
+            await this.engine.reset();
+            
+            // 요소 추가
+            console.log(`Adding ${necModel.elements.length} elements to simulation...`);
+            for (const element of necModel.elements) {
+                const halfLength = element.length / 2;
+                const segments = Math.max(3, Math.floor(element.length / 100)); // Minimum 3 segments
                 
-                // Run analysis
-                const result = await this.engine.runAnalysis();
-                
-                // Extract impedance
-                const impedance = {
-                    r: result.impedance.resistance,
-                    x: result.impedance.reactance
-                };
-                
-                // Calculate VSWR
-                const vswr = this.calculateVSWR(impedance);
-                
-                // Store results
-                results.gains.push(result.gain);
-                results.fbRatios.push(result.fbRatio);
-                results.vswrs.push(vswr);
-                results.impedances.push(impedance);
-            } catch (error) {
-                console.error(`Error calculating at frequency ${frequency}MHz:`, error);
-                
-                // Add default values in case of error
-                results.gains.push(0);
-                results.fbRatios.push(0);
-                results.vswrs.push(999);
-                results.impedances.push({ r: 0, x: 0 });
+                try {
+                    await this.engine.addWireSegment(
+                        element.position, -halfLength, 0,  // Start point (x, y, z)
+                        element.position, halfLength, 0,   // End point (x, y, z)
+                        element.diameter / 2,              // Radius
+                        segments // Number of segments
+                    );
+                } catch (elemError) {
+                    console.error(`Error adding element at position ${element.position}:`, elemError);
+                    throw new Error(`Failed to add element at position ${element.position}: ${elemError.message}`);
+                }
             }
+        
+            // Add feed point to driven element
+            const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
+            if (drivenIndex !== -1) {
+                const drivenElement = necModel.elements[drivenIndex];
+                const segments = Math.max(3, Math.floor(drivenElement.length / 100));
+                const segmentIndex = Math.floor(segments / 2); // Center segment
+                
+                console.log(`Adding feed point to driven element (index ${drivenIndex}, segment ${segmentIndex})`);
+                try {
+                    // Add feed point to the center of the driven element (card 5)
+                    await this.engine.addExcitation(drivenIndex + 1, segmentIndex);
+                } catch (excitError) {
+                    console.error('Error adding excitation:', excitError);
+                    throw new Error(`Failed to add excitation: ${excitError.message}`);
+                }
+            } else {
+                console.warn('No driven element found in antenna model');
+                throw new Error('Antenna must have a driven element for analysis');
+            }
+        
+            // Create frequency points
+            const freqStep = (endFreq - startFreq) / (steps - 1);
+            
+            // Calculate performance at each frequency
+            console.log(`Calculating performance at ${steps} frequency points...`);
+            for (let i = 0; i < steps; i++) {
+                const frequency = startFreq + (freqStep * i);
+                results.frequencies.push(frequency);
+                console.log(`Processing frequency point ${i+1}/${steps}: ${frequency.toFixed(2)} MHz`);
+
+            
+                try {
+                    // Set frequency (keeping the same geometry)
+                    await this.engine.setFrequency(frequency);
+                    
+                    // Run analysis
+                    const result = await this.engine.runAnalysis();
+                    
+                    if (!result || !result.impedance) {
+                        throw new Error('Invalid result returned from analysis');
+                    }
+                    
+                    // Extract impedance
+                    const impedance = {
+                        r: result.impedance.resistance,
+                        x: result.impedance.reactance
+                    };
+                    
+                    // Calculate VSWR
+                    const vswr = this.calculateVSWR(impedance);
+                    
+                    // Store results
+                    results.gains.push(result.gain || 0);
+                    results.fbRatios.push(result.fbRatio || 0);
+                    results.vswrs.push(vswr);
+                    results.impedances.push(impedance);
+                    
+                    if (i % 5 === 0 || i === steps-1) {
+                        console.log(`Progress: ${Math.round((i+1)/steps*100)}% complete`);
+                    }
+                } catch (error) {
+                    console.error(`Error calculating at frequency ${frequency}MHz:`, error);
+                    
+                    // Add default values in case of error
+                    results.gains.push(0);
+                    results.fbRatios.push(0);
+                    results.vswrs.push(999);
+                    results.impedances.push({ r: 0, x: 0 });
+                }
         }
         
-        return results;
+            console.log('Frequency sweep completed successfully');
+            return results;
+        } catch (error) {
+            console.error('Error during frequency sweep:', error);
+            return {
+                error: 'Frequency sweep failed: ' + error.message,
+                frequencies: [],
+                gains: [],
+                fbRatios: [],
+                vswrs: [],
+                impedances: [],
+                success: false
+            };
+        }
     }
 
     /**
@@ -283,111 +428,183 @@ export class AntennaCalculator {
      * @returns {object} Radiation pattern data in 3D coordinates
      */
     async calculateRadiationPattern(antennaModel, frequency, angleStep = 5) {
-        // Wait for the engine to be ready
-        await this._waitForEngine();
-
-        // Convert antenna model to NEC2 format
-        const necModel = this._convertModelToNEC(antennaModel, frequency);
+        try {
+            // Wait for the engine to be ready
+            await this._waitForEngine();
+            
+            console.log(`Calculating radiation pattern at ${frequency} MHz with ${angleStep}° step size`);
+    
+            // Convert antenna model to NEC2 format
+            const necModel = this._convertModelToNEC(antennaModel, frequency);
+            
+            // Initialize engine and set up model
+            console.log('Resetting NEC2 engine for radiation pattern...');
+            await this.engine.reset();
         
-        // Initialize engine and set up model
-        await this.engine.reset();
+            // Add wire segments
+            console.log(`Adding ${necModel.elements.length} elements to simulation...`);
+            for (const element of necModel.elements) {
+                const halfLength = element.length / 2;
+                const segments = Math.max(3, Math.floor(element.length / 100)); // Minimum 3 segments
+                
+                try {
+                    await this.engine.addWireSegment(
+                        element.position, -halfLength, 0,  // Start point (x, y, z)
+                        element.position, halfLength, 0,   // End point (x, y, z)
+                        element.diameter / 2,              // Radius
+                        segments // Number of segments
+                    );
+                } catch (elemError) {
+                    console.error(`Error adding element at position ${element.position}:`, elemError);
+                    throw new Error(`Failed to add element at position ${element.position}: ${elemError.message}`);
+                }
+            }
         
-        // Add wire segments
-        for (const element of necModel.elements) {
-            const halfLength = element.length / 2;
-            await this.engine.addWireSegment(
-                element.position, -halfLength, 0,  // Start point (x, y, z)
-                element.position, halfLength, 0,   // End point (x, y, z)
-                element.diameter / 2,              // Radius
-                Math.max(3, Math.floor(element.length / 100)) // Number of segments
-            );
-        }
+            // Add feed point to driven element
+            const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
+            if (drivenIndex !== -1) {
+                const drivenElement = necModel.elements[drivenIndex];
+                const segments = Math.max(3, Math.floor(drivenElement.length / 100));
+                const segmentIndex = Math.floor(segments / 2); // Center segment
+                
+                console.log(`Adding feed point to driven element (index ${drivenIndex}, segment ${segmentIndex})`);
+                try {
+                    // Add feed point to the center of the driven element
+                    await this.engine.addExcitation(drivenIndex + 1, segmentIndex);
+                } catch (excitError) {
+                    console.error('Error adding excitation:', excitError);
+                    throw new Error(`Failed to add excitation: ${excitError.message}`);
+                }
+            } else {
+                console.warn('No driven element found in antenna model');
+                throw new Error('Antenna must have a driven element for analysis');
+            }
         
-        // Add feed point to driven element
-        const drivenIndex = necModel.elements.findIndex(el => el.type === 'driven');
-        if (drivenIndex !== -1) {
-            const drivenElement = necModel.elements[drivenIndex];
-            // Add feed point to the center of the driven element
-            await this.engine.addExcitation(drivenIndex + 1, Math.floor(Math.max(3, Math.floor(drivenElement.length / 100)) / 2));
-        }
-        
-        // Set frequency
-        await this.engine.setFrequency(frequency);
-        
-        // Run basic analysis to find maximum gain
-        const baseResult = await this.engine.runAnalysis();
-        const maxGain = baseResult.gain;
+            // Set frequency
+            console.log(`Setting frequency to ${frequency} MHz`);
+            try {
+                await this.engine.setFrequency(frequency);
+            } catch (freqError) {
+                console.error('Error setting frequency:', freqError);
+                throw new Error(`Failed to set frequency: ${freqError.message}`);
+            }
+            
+            // Run basic analysis to find maximum gain
+            console.log('Running basic analysis to find maximum gain...');
+            let baseResult;
+            try {
+                baseResult = await this.engine.runAnalysis();
+                if (!baseResult || typeof baseResult.gain === 'undefined') {
+                    throw new Error('Invalid base result returned from analysis');
+                }
+                console.log(`Found maximum gain: ${baseResult.gain.toFixed(2)} dBi`);
+            } catch (analysisError) {
+                console.error('Error running base analysis:', analysisError);
+                throw new Error(`Base analysis failed: ${analysisError.message}`);
+            }
+            
+            const maxGain = baseResult.gain;
         
         // Create arrays to store pattern data
-        const azimuthPoints = Math.ceil(360 / angleStep);
-        const elevationPoints = Math.ceil(180 / angleStep) + 1;
+            const azimuthPoints = Math.ceil(360 / angleStep);
+            const elevationPoints = Math.ceil(180 / angleStep) + 1;
+            
+            const pattern = {
+                azimuth: new Array(azimuthPoints),       // Horizontal plane (0-360°)
+                elevation: new Array(elevationPoints),   // Vertical plane (0-180°)
+                data3D: []                               // Full 3D pattern
+            };
+            
+            // Calculate radiation pattern for each direction
         
-        const pattern = {
-            azimuth: new Array(azimuthPoints),       // Horizontal plane (0-360°)
-            elevation: new Array(elevationPoints),   // Vertical plane (0-180°)
-            data3D: []                               // Full 3D pattern
-        };
-        
-        // Calculate radiation pattern for each direction
-        
-        // Calculate horizontal plane (azimuth) pattern (elevation 90 degrees)
-        for (let i = 0; i < azimuthPoints; i++) {
-            const azimuth = i * angleStep;
-            try {
-                // Calculate gain for specific direction using NEC2C engine
-                const gainResult = await this.engine.calculateRadiationPattern(azimuth, 90);
-                // Normalize using maximum gain (0-1 range)
-                pattern.azimuth[i] = Math.pow(10, (gainResult.gain - maxGain) / 20);
-            } catch (error) {
-                console.error(`Error calculating radiation pattern at azimuth ${azimuth} degrees:`, error);
-                pattern.azimuth[i] = 0; // Set to 0 on error
-            }
-        }
-        
-        // Calculate vertical plane (elevation) pattern (azimuth 0 degrees)
-        for (let i = 0; i < elevationPoints; i++) {
-            const elevation = i * angleStep;
-            try {
-                const gainResult = await this.engine.calculateRadiationPattern(0, elevation);
-                pattern.elevation[i] = Math.pow(10, (gainResult.gain - maxGain) / 20);
-            } catch (error) {
-                console.error(`Error calculating radiation pattern at elevation ${elevation} degrees:`, error);
-                pattern.elevation[i] = 0;
-            }
-        }
-        
-        // Calculate 3D radiation pattern
-        for (let az = 0; az < 360; az += angleStep) {
-            for (let el = 0; el <= 180; el += angleStep) {
-                let gain = 0;
+            // Calculate horizontal plane (azimuth) pattern (elevation 90 degrees)
+            console.log('Calculating horizontal plane pattern...');
+            for (let i = 0; i < azimuthPoints; i++) {
+                const azimuth = i * angleStep;
                 try {
-                    // Calculate gain for all directions using NEC2C engine
-                    const gainResult = await this.engine.calculateRadiationPattern(az, el);
+                    // Calculate gain for specific direction using NEC2C engine
+                    const gainResult = await this.engine.calculateRadiationPattern(azimuth, 90);
                     // Normalize using maximum gain (0-1 range)
-                    gain = Math.pow(10, (gainResult.gain - maxGain) / 20);
+                    pattern.azimuth[i] = Math.pow(10, (gainResult.gain - maxGain) / 20);
                 } catch (error) {
-                    console.error(`Error calculating radiation pattern at azimuth ${az} degrees, elevation ${el} degrees:`, error);
+                    console.error(`Error calculating radiation pattern at azimuth ${azimuth} degrees:`, error);
+                    pattern.azimuth[i] = 0; // Set to 0 on error
                 }
                 
-                // Convert spherical coordinates to Cartesian coordinates
-                const r = gain;
-                const phi = az * Math.PI / 180;
-                const theta = el * Math.PI / 180;
-                
-                const x = r * Math.sin(theta) * Math.cos(phi);
-                const y = r * Math.sin(theta) * Math.sin(phi);
-                const z = r * Math.cos(theta);
-                
-                pattern.data3D.push({
-                    x, y, z,
-                    gain,
-                    azimuth: az,
-                    elevation: el
-                });
+                if (i % 10 === 0) {
+                    console.log(`Horizontal scan progress: ${Math.round((i+1)/azimuthPoints*100)}%`);
+                }
             }
-        }
         
-        return pattern;
+            // Calculate vertical plane (elevation) pattern (azimuth 0 degrees)
+            console.log('Calculating vertical plane pattern...');
+            for (let i = 0; i < elevationPoints; i++) {
+                const elevation = i * angleStep;
+                try {
+                    const gainResult = await this.engine.calculateRadiationPattern(0, elevation);
+                    pattern.elevation[i] = Math.pow(10, (gainResult.gain - maxGain) / 20);
+                } catch (error) {
+                    console.error(`Error calculating radiation pattern at elevation ${elevation} degrees:`, error);
+                    pattern.elevation[i] = 0;
+                }
+                
+                if (i % 5 === 0) {
+                    console.log(`Vertical scan progress: ${Math.round((i+1)/elevationPoints*100)}%`);
+                }
+            }
+        
+            // Calculate 3D radiation pattern
+            console.log('Calculating 3D radiation pattern...');
+            let totalPoints = Math.ceil(360/angleStep) * Math.ceil(180/angleStep);
+            let pointsProcessed = 0;
+            
+            for (let az = 0; az < 360; az += angleStep) {
+                for (let el = 0; el <= 180; el += angleStep) {
+                    let gain = 0;
+                    try {
+                        // Calculate gain for all directions using NEC2C engine
+                        const gainResult = await this.engine.calculateRadiationPattern(az, el);
+                        // Normalize using maximum gain (0-1 range)
+                        gain = Math.pow(10, (gainResult.gain - maxGain) / 20);
+                    } catch (error) {
+                        console.error(`Error calculating radiation pattern at azimuth ${az} degrees, elevation ${el} degrees:`, error);
+                    }
+                    
+                    // Convert spherical coordinates to Cartesian coordinates
+                    const r = gain;
+                    const phi = az * Math.PI / 180;
+                    const theta = el * Math.PI / 180;
+                    
+                    const x = r * Math.sin(theta) * Math.cos(phi);
+                    const y = r * Math.sin(theta) * Math.sin(phi);
+                    const z = r * Math.cos(theta);
+                    
+                    pattern.data3D.push({
+                        x, y, z,
+                        gain,
+                        azimuth: az,
+                        elevation: el
+                    });
+                    
+                    pointsProcessed++;
+                    if (pointsProcessed % 50 === 0 || pointsProcessed === totalPoints) {
+                        console.log(`3D pattern progress: ${Math.round(pointsProcessed/totalPoints*100)}%`);
+                    }
+                }
+            }
+        
+            console.log('Radiation pattern calculation completed successfully');
+            return pattern;
+        } catch (error) {
+            console.error('Error during radiation pattern calculation:', error);
+            return {
+                error: 'Radiation pattern calculation failed: ' + error.message,
+                azimuth: [],
+                elevation: [],
+                data3D: [],
+                success: false
+            };
+        }
     }
 
     /**
