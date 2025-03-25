@@ -69,6 +69,23 @@ class App {
     setupEventListeners() {
         console.log('Setting up event listeners...');
         
+        // NEC2C 엔진 초기화 상태 모니터링
+        document.addEventListener('nec2c-engine-status', (event) => {
+            console.log('NEC2C engine status update:', event.detail);
+            if (event.detail.ready) {
+                // 엔진 초기화 성공 시
+                this.ui.updateStatus('NEC2 engine ready');
+                this.ui.enableCalculationButtons(true);
+            } else {
+                // 엔진 초기화 실패 시
+                const errorMsg = event.detail.error || 'Initialization error';
+                console.error('NEC2C engine initialization failed:', errorMsg);
+                this.ui.updateStatus(errorMsg, 'error');
+                this.ui.showNotification('NEC2C 엔진 초기화 실패', errorMsg, 'error');
+                this.ui.enableCalculationButtons(false);
+            }
+        });
+        
         // Tab navigation
         document.querySelectorAll('.tab-link').forEach(link => {
             link.addEventListener('click', (e) => {

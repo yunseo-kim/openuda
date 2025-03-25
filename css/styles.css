@@ -49,6 +49,100 @@
   box-sizing: border-box;
 }
 
+/* Status Display Styles */
+#status-display {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-left: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.85rem;
+  background-color: var(--gray-200);
+  color: var(--gray-700);
+}
+
+#status-display.error {
+  background-color: var(--error-color);
+  color: white;
+}
+
+#status-display.warning {
+  background-color: var(--warning-color);
+  color: var(--gray-900);
+}
+
+#status-display.success {
+  background-color: var(--success-color);
+  color: white;
+}
+
+/* Notification Styles */
+.notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: var(--spacing-md);
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-width: 400px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  transform: translateX(150%);
+  transition: transform var(--transition-speed) ease-in-out;
+}
+
+.notification.show {
+  transform: translateX(0);
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: bold;
+  margin-bottom: var(--spacing-xs);
+}
+
+.notification-message {
+  font-size: 0.9rem;
+  color: var(--gray-700);
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--gray-600);
+  margin-left: var(--spacing-sm);
+  padding: 0;
+}
+
+.notification.info {
+  border-left: 4px solid var(--secondary-color);
+}
+
+.notification.success {
+  border-left: 4px solid var(--success-color);
+}
+
+.notification.warning {
+  border-left: 4px solid var(--warning-color);
+}
+
+.notification.error {
+  border-left: 4px solid var(--error-color);
+}
+
+/* Button Disabled State */
+button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 html {
   font-size: var(--font-size-base);
   scroll-behavior: smooth;

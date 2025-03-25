@@ -10,6 +10,42 @@ export class UI {
     constructor(app) {
         this.app = app;
         this.notificationTimeout = null;
+        
+        // 상태 표시를 위한 DOM 요소 참조
+        this.statusElement = document.getElementById('status-display');
+        this.notificationElement = document.getElementById('notification');
+        
+        // 알림 창 닫기 버튼 이벤트 리스너 설정
+        this._setupNotificationCloseButton();
+    }
+    
+    /**
+     * 알림 창 닫기 버튼 이벤트 리스너를 설정합니다
+     * @private
+     */
+    _setupNotificationCloseButton() {
+        if (this.notificationElement) {
+            const closeButton = this.notificationElement.querySelector('.notification-close');
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    this.hideNotification();
+                });
+            }
+        }
+    }
+    
+    /**
+     * 알림 창을 숨깁니다
+     */
+    hideNotification() {
+        if (this.notificationElement) {
+            this.notificationElement.classList.remove('show');
+        }
+        
+        if (this.notificationTimeout) {
+            clearTimeout(this.notificationTimeout);
+            this.notificationTimeout = null;
+        }
     }
 
     /**
@@ -51,6 +87,98 @@ export class UI {
     /**
      * Initialize modal dialogs
      */
+    /**
+     * 대상 뷰의 상태 보기를 업데이트합니다
+     * @param {string} message - 표시할 상태 메시지
+     * @param {string} type - 상태 타입 ('normal', 'error', 'warning', 'success' 중 하나)
+     */
+    updateStatus(message, type = 'normal') {
+        if (!this.statusElement) {
+            this.statusElement = document.getElementById('status-display');
+            if (!this.statusElement) {
+                console.error('Status display element not found');
+                return;
+            }
+        }
+        
+        // 기존 상태 클래스 제거
+        this.statusElement.classList.remove('error', 'warning', 'success');
+        
+        // 새 상태 클래스 추가
+        if (type !== 'normal') {
+            this.statusElement.classList.add(type);
+        }
+        
+        // 상태 텍스트 업데이트
+        this.statusElement.textContent = message;
+    }
+    
+    /**
+     * 계산 관련 버튼들을 활성화/비활성화 합니다
+     * @param {boolean} enabled - 버튼을 활성화할지 여부
+     */
+    enableCalculationButtons(enabled) {
+        const buttons = [
+            document.getElementById('run-analysis-btn'),
+            document.getElementById('run-sweep-btn'),
+            document.getElementById('run-optimization-btn')
+        ];
+        
+        buttons.forEach(button => {
+            if (button) {
+                if (enabled) {
+                    button.disabled = false;
+                    button.classList.remove('disabled');
+                } else {
+                    button.disabled = true;
+                    button.classList.add('disabled');
+                }
+            }
+        });
+    }
+    
+    /**
+     * 알림 메시지를 표시합니다
+     * @param {string} title - 알림 제목
+     * @param {string} message - 알림 메시지
+     * @param {string} type - 알림 타입 ('info', 'error', 'warning', 'success' 중 하나)
+     * @param {number} duration - 알림 표시 시간 (밀리초, 기본 5000ms)
+     */
+    showNotification(title, message, type = 'info', duration = 5000) {
+        if (!this.notificationElement) {
+            this.notificationElement = document.getElementById('notification');
+            if (!this.notificationElement) {
+                console.error('Notification element not found');
+                return;
+            }
+        }
+        
+        // 기존 알림 제거
+        if (this.notificationTimeout) {
+            clearTimeout(this.notificationTimeout);
+        }
+        
+        // 알림 요소 구조 가져오기
+        const titleElement = this.notificationElement.querySelector('.notification-title');
+        const messageElement = this.notificationElement.querySelector('.notification-message');
+        
+        if (titleElement) titleElement.textContent = title;
+        if (messageElement) messageElement.textContent = message;
+        
+        // 기존 타입 클래스 제거
+        this.notificationElement.classList.remove('info', 'error', 'warning', 'success');
+        // 새 타입 클래스 추가
+        this.notificationElement.classList.add(type);
+        
+        // 알림 표시
+        this.notificationElement.classList.add('show');
+        
+        // 일정 시간 후 알림 숨기기
+        this.notificationTimeout = setTimeout(() => {
+            this.notificationElement.classList.remove('show');
+        }, duration);
+    }
+    
     initModals() {
         // Setup close button functionality for all modals
         document.querySelectorAll('.close-modal').forEach(closeBtn => {
