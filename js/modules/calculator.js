@@ -102,15 +102,29 @@ export class AntennaCalculator {
      * @param {string} errorMessage - 오류 메시지 (실패한 경우)
      */
     _fireEngineInitEvent(success, errorMessage) {
-        // 사용자 정의 이벤트를 사용하여 엔진 상태 변경을 알림
-        const event = new CustomEvent('nec2c-engine-status', {
-            detail: {
-                ready: success,
-                error: errorMessage || null
-            },
-            bubbles: true
-        });
-        document.dispatchEvent(event);
+        // 브라우저 환경인지 확인 (테스트에서는 Node.js 환경일 수 있음)
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+            try {
+                // 사용자 정의 이벤트를 사용하여 엔진 상태 변경을 알림
+                const event = new CustomEvent('nec2c-engine-status', {
+                    detail: {
+                        ready: success,
+                        error: errorMessage || null
+                    },
+                    bubbles: true
+                });
+                document.dispatchEvent(event);
+            } catch (error) {
+                console.error('Failed to dispatch engine status event:', error);
+            }
+        } else {
+            // Node.js 환경에서는 단순히 로그만 출력
+            if (success) {
+                console.log('NEC2C engine initialized successfully');
+            } else {
+                console.error('NEC2C engine initialization failed:', errorMessage || 'Unknown error');
+            }
+        }
     }
     
     /**
