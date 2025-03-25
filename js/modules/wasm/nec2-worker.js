@@ -224,6 +224,17 @@ self.onmessage = async function(event) {
                 }
                 break;
                 
+            case 'reset':
+                // Reset the internal state of the NEC2 engine
+                if (isReady && necModule) {
+                    // Reset any internal state variables if needed
+                    necModule._main(0, 0);
+                    postResult(data.callbackId, true);
+                } else {
+                    postResult(data.callbackId, false);
+                }
+                break;
+                
             case 'cleanup':
                 // Clean up resources
                 if (isReady && necModule) {

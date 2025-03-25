@@ -558,6 +558,35 @@ class NEC2Engine {
     }
     
     /**
+     * Reset the engine state for a new calculation
+     * This is used to clear any previous simulation state before running a new one
+     * @returns {Promise<boolean>} Promise resolving to true when reset is complete
+     */
+    async reset() {
+        // If using worker, send reset message
+        if (this.workerInstance) {
+            return new Promise((resolve) => {
+                const callbackId = this._registerCallback((result) => {
+                    resolve(result.status);
+                });
+                
+                this.workerInstance.postMessage({
+                    type: 'reset',
+                    callbackId: callbackId
+                });
+            });
+        } else {
+            // In direct mode, we need to reinitialize the module
+            // This isn't ideal for performance but ensures a clean state
+            if (this.module && this.module._main) {
+                // Call main with empty args to reset internal state
+                this.module._main(0, 0);
+            }
+            return true;
+        }
+    }
+    
+    /**
      * Clean up resources and terminate the worker.
      */
     cleanup() {
