@@ -33,15 +33,15 @@ export class AntennaCalculator {
         try {
             this.engine = new NEC2Engine(true, () => {
                 this.isReady = true;
-                console.log('NEC2C 엔진 초기화 완료');
+                console.log('NEC2C engine initialization complete');
             });
         } catch (error) {
-            console.error('NEC2C 엔진 초기화 실패:', error);
+            console.error('NEC2C engine initialization failed:', error);
         }
     }
     
     /**
-     * 엔진이 준비될 때까지 기다립니다
+     * Wait until the engine is ready
      * @private
      */
     async _waitForEngine() {
@@ -149,7 +149,7 @@ export class AntennaCalculator {
             };
             
             // Calculate VSWR
-            const vswr = this._calculateVSWR(result.impedance);
+            const vswr = this.calculateVSWR(result.impedance);
             
             // Return results
             return {
@@ -170,45 +170,20 @@ export class AntennaCalculator {
     }
     
     /**
-     * Calculate VSWR from impedance
+     * Calculate antenna beamwidth
      * @private
-     * @param {object} impedance Object with r and x properties (complex impedance)
-     * @param {number} z0 Reference impedance (typically 50 ohms)
-     * @returns {number} VSWR 값
-     */
-    _calculateVSWR(impedance, z0 = 50) {
-        const r = impedance.resistance;
-        const x = impedance.reactance;
-        
-        // 반사 계수 (크기) 계산
-        const z = Math.sqrt(r * r + x * x);
-        const reflectionCoeff = Math.abs((z - z0) / (z + z0));
-        
-        // 반사 계수에서 VSWR 계산
-        // 0으로 나누기 방지
-        if (reflectionCoeff === 1) {
-            return 999; // 사실상 무한대 VSWR
-        }
-        
-        const vswr = (1 + reflectionCoeff) / (1 - reflectionCoeff);
-        return vswr;
-    }
-    
-    /**
-     * 대략적인 빔폭 계산
-     * @private
-     * @param {object} result 시뮬레이션 결과
-     * @returns {number} 대략적인 빔폭 (도)
+     * @param {object} result Simulation result
+     * @returns {number} Approximate beamwidth in degrees
      */
     _calculateBeamwidth(result) {
-        // 이득에 기반한 대략적인 빔폭
+        // Approximate beamwidth based on gain
         const gain = result.gain;
         
-        // 이득이 높을수록 빔폭이 좁아짐
-        // 대략적인 공식: beamwidth ≈ 70 / sqrt(gain)
+        // Higher gain results in narrower beamwidth
+        // Approximate formula: beamwidth ≈ 70 / sqrt(gain)
         let beamwidth = 70 / Math.sqrt(Math.pow(10, gain / 10));
         
-        // 합리적인 범위로 제한
+        // Limit to a reasonable range
         return Math.max(10, Math.min(180, beamwidth));
     }
 
@@ -279,7 +254,7 @@ export class AntennaCalculator {
                 };
                 
                 // Calculate VSWR
-                const vswr = this._calculateVSWR(impedance);
+                const vswr = this.calculateVSWR(impedance);
                 
                 // Store results
                 results.gains.push(result.gain);
@@ -416,33 +391,37 @@ export class AntennaCalculator {
     }
 
     /**
-     * @deprecated This method is no longer used as the NEC2C engine directly calculates radiation patterns.
-     */
-    calculatePatternGain(azimuth, elevation, elements, positions, wavelength, maxGain) {
-        console.warn('calculatePatternGain is deprecated and no longer used. The NEC2C engine directly calculates radiation patterns.');
-        return 0;
-    }
-
-    /**
      * Calculate VSWR from impedance
      * @param {object} impedance Complex impedance {r, x}
      * @param {number} z0 Reference impedance (typically 50 ohms)
      * @returns {number} VSWR value
      */
-    calculateVSWR(impedance, z0) {
-        // Calculate reflection coefficient (Γ)
-        const numerator = Math.sqrt(
-            Math.pow(impedance.r - z0, 2) + Math.pow(impedance.x, 2)
-        );
-        const denominator = Math.sqrt(
-            Math.pow(impedance.r + z0, 2) + Math.pow(impedance.x, 2)
-        );
+    calculateVSWR(impedance, z0 = 50) {
+        // Support both naming conventions (r/x and resistance/reactance)
+        const r = impedance.r !== undefined ? impedance.r : impedance.resistance || 0;
+        const x = impedance.x !== undefined ? impedance.x : impedance.reactance || 0;
         
-        const gamma = numerator / denominator;
+        // Calculate reflection coefficient magnitude using the correct formula for complex impedance
+        // For complex impedance Z1 = r + jx and Z0 = z0 (real), the reflection coefficient Γ is:
+        // Γ = (Z1 - Z0) / (Z1 + Z0) = ((r - z0) + jx) / ((r + z0) + jx)
+        // |Γ| = |Z1 - Z0| / |Z1 + Z0| = sqrt((r-z0)² + x²) / sqrt((r+z0)² + x²)
         
-        // Calculate VSWR from reflection coefficient
-        const vswr = (1 + gamma) / (1 - gamma);
+        // Calculate numerator: |Z1 - Z0| = sqrt((r-z0)² + x²)
+        const numerator = Math.sqrt(Math.pow(r - z0, 2) + Math.pow(x, 2));
         
+        // Calculate denominator: |Z1 + Z0| = sqrt((r+z0)² + x²)
+        const denominator = Math.sqrt(Math.pow(r + z0, 2) + Math.pow(x, 2));
+        
+        // Calculate reflection coefficient magnitude |Γ| = |Z1 - Z0| / |Z1 + Z0|
+        const reflectionCoeff = denominator !== 0 ? numerator / denominator : 1;
+        
+        // Calculate VSWR from reflection coefficient: VSWR = (1 + |Γ|) / (1 - |Γ|)
+        // Prevent division by zero and handle edge cases
+        if (reflectionCoeff >= 0.9999) {
+            return 999; // Practically infinite VSWR (avoid actual infinity)
+        }
+        
+        const vswr = (1 + reflectionCoeff) / (1 - reflectionCoeff);
         return vswr;
     }
 }
