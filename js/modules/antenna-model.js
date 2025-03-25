@@ -8,7 +8,7 @@
 
 export class AntennaModel {
     constructor() {
-        // Basic antenna properties
+        // Default antenna properties
         this.centerFrequency = 144; // MHz
         this.elements = [];         // Array of antenna elements (reflector, driven, directors)
         this.boomDiameter = 20;     // mm
