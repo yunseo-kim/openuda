@@ -61,16 +61,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18.x'
+    # - name: Setup Node.js
+    #   uses: actions/setup-node@v3
+    #   with:
+    #     node-version: '18.x'
     
-    - name: Install dependencies
-      run: npm install
+    # - name: Install dependencies
+    #   run: npm install
     
-    - name: Build for production
-      run: npm run build
+    # - name: Build for production
+    #   run: npm run build
       
     - name: Setup Pages
       uses: actions/configure-pages@v5
