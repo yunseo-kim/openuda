@@ -197,12 +197,15 @@ export class AntennaCalculator {
      * @returns {object} Results including gain, F/B ratio, impedance, VSWR, etc.
      */
     async calculateAntennaPerformance(antennaModel, frequency = null) {
+        // Define freq in the outer scope so it's available in the catch block
+        let freq;
+        
         try {
             // Wait for the engine to be ready
             await this._waitForEngine();
             
             // Use model center frequency (if not specified)
-            const freq = frequency || antennaModel.centerFrequency;
+            freq = frequency || antennaModel.centerFrequency;
             
             // Validate frequency
             if (!freq || freq <= 0) {
@@ -330,7 +333,7 @@ export class AntennaCalculator {
             
             return {
                 error: 'Simulation failed: ' + errorDetails,
-                frequency: freq,
+                frequency: freq || (antennaModel && antennaModel.centerFrequency) || 0,
                 success: false
             };
         }
