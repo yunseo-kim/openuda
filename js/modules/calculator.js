@@ -33,33 +33,84 @@ export class AntennaCalculator {
         try {
             console.log('Starting NEC2C engine initialization...');
             // Try to use optimized engine first, with fallback
-            this.engine = new NEC2Engine(true, () => {
+            this.engine = new NEC2Engine(true, (error) => {
+                // 중요: error 매개변수를 확인하여 오류 처리
+                if (error) {
+                    console.error('NEC2C engine initialization error (callback):', error);
+                    this.isReady = false;
+                    // 여기서는 fallback을 시도하지 않음 - 이미 _initEngine 메서드에서 catch 블록으로 이동
+                    return;
+                }
+                
                 this.isReady = true;
                 console.log('NEC2C engine initialization complete');
             });
             
             // Set a timeout to catch stalled initialization
-            setTimeout(() => {
+            const initTimeout = setTimeout(() => {
                 if (!this.isReady) {
                     console.warn('NEC2C engine initialization taking longer than expected...');
+                    // 30초 후에도 초기화되지 않으면 fallback 버전을 시도
+                    if (!this.isReady && this.engine) {
+                        console.warn('Initialization timeout - attempting to use non-optimized engine');
+                        this._initFallbackEngine();
+                    }
                 }
-            }, 3000);
+            }, 5000); // 5초로 증가
             
         } catch (error) {
             console.error('NEC2C engine initialization failed:', error);
-            
-            // Try to initialize with non-optimized engine if optimized failed
-            try {
-                console.log('Retrying with non-optimized engine...');
-                this.engine = new NEC2Engine(false, () => {
-                    this.isReady = true;
-                    console.log('NEC2C engine initialization complete (non-optimized)');
-                });
-            } catch (fallbackError) {
-                console.error('Fallback engine initialization also failed:', fallbackError);
-                throw new Error('Failed to initialize NEC2 engine: ' + fallbackError.message);
-            }
+            // 최적화 엔진 초기화 실패 시 비최적화 엔진으로 폴백
+            this._initFallbackEngine();
         }
+    }
+    
+    /**
+     * 비최적화 엔진으로 폴백 초기화를 시도합니다
+     * @private
+     */
+    async _initFallbackEngine() {
+        try {
+            console.log('Retrying with non-optimized engine...');
+            this.engine = new NEC2Engine(false, (error) => {
+                if (error) {
+                    console.error('Non-optimized engine initialization failed (callback):', error);
+                    this.isReady = false;
+                    // UI에 오류 상태를 표시할 수 있는 이벤트 발생
+                    this._fireEngineInitEvent(false, 'Failed to initialize NEC2C engine');
+                    return;
+                }
+                
+                this.isReady = true;
+                console.log('NEC2C engine initialization complete (non-optimized)');
+                // UI에 성공 상태를 표시
+                this._fireEngineInitEvent(true);
+            });
+        } catch (fallbackError) {
+            console.error('Fallback engine initialization also failed:', fallbackError);
+            this.isReady = false;
+            // UI에 오류 상태를 표시
+            this._fireEngineInitEvent(false, 'Failed to initialize NEC2 engine: ' + fallbackError.message);
+            throw new Error('Failed to initialize NEC2 engine: ' + fallbackError.message);
+        }
+    }
+    
+    /**
+     * NEC2C 엔진 초기화 이벤트를 발생시킵니다
+     * @private
+     * @param {boolean} success - 초기화 성공 여부
+     * @param {string} errorMessage - 오류 메시지 (실패한 경우)
+     */
+    _fireEngineInitEvent(success, errorMessage) {
+        // 사용자 정의 이벤트를 사용하여 엔진 상태 변경을 알림
+        const event = new CustomEvent('nec2c-engine-status', {
+            detail: {
+                ready: success,
+                error: errorMessage || null
+            },
+            bubbles: true
+        });
+        document.dispatchEvent(event);
     }
     
     /**
@@ -72,7 +123,7 @@ export class AntennaCalculator {
         console.log('Waiting for NEC2C engine to be ready...');
         
         return new Promise((resolve, reject) => {
-            const maxWaitTime = 15000; // 15 seconds max wait time
+            const maxWaitTime = 20000; // 20 seconds max wait time
             const startTime = Date.now();
             
             const checkInterval = setInterval(() => {
@@ -88,6 +139,11 @@ export class AntennaCalculator {
                     clearInterval(checkInterval);
                     const errorMsg = 'Timeout waiting for NEC2C engine initialization';
                     console.error(errorMsg);
+                    
+                    // 타임아웃 발생 시 UI에 오류 상태 표시
+                    this._fireEngineInitEvent(false, errorMsg);
+                    
+                    // Promise 거부
                     reject(new Error(errorMsg));
                 }
             }, 100);
