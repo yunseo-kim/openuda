@@ -50,17 +50,17 @@ export class AntennaCalculator {
             const initTimeout = setTimeout(() => {
                 if (!this.isReady) {
                     console.warn('NEC2C engine initialization taking longer than expected...');
-                    // 30초 후에도 초기화되지 않으면 fallback 버전을 시도
+                    // 5초 후에도 초기화되지 않으면 fallback 버전을 시도
                     if (!this.isReady && this.engine) {
                         console.warn('Initialization timeout - attempting to use non-optimized engine');
                         this._initFallbackEngine();
                     }
                 }
-            }, 5000); // 5초로 증가
+            }, 5000);
             
         } catch (error) {
             console.error('NEC2C engine initialization failed:', error);
-            // 최적화 엔진 초기화 실패 시 비최적화 엔진으로 폴백
+            // Try to initialize with non-optimized engine if optimized failed
             this._initFallbackEngine();
         }
     }
