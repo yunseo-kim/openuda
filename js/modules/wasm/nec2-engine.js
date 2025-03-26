@@ -187,8 +187,8 @@ EN
         this.necFunctions.addWireSegment = this.module.cwrap('wire', 'number', 
             ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number']);
             
-        this.necFunctions.calculatePattern = this.module.cwrap('rdpat', 'number',
-            ['number', 'number', 'number', 'number', 'number', 'number']);
+        // rdpat 함수는 인자 없이 호출되어야 함 - 파일 기반 입출력 사용
+        this.necFunctions.calculatePattern = this.module.cwrap('rdpat', 'number', []);
             
         this.necFunctions.setLoadParameters = this.module.cwrap('load', 'number',
             ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
@@ -600,21 +600,8 @@ EN
                 console.warn('Could not read input file:', fsError);
             }
             
-            // Allocate memory for results
-            const gainPtr = this.module._malloc(8); // double
-            const fbRatioPtr = this.module._malloc(8); // double
-            const resistancePtr = this.module._malloc(8); // double
-            const reactancePtr = this.module._malloc(8); // double
-            
-            if (!gainPtr || !fbRatioPtr || !resistancePtr || !reactancePtr) {
-                throw new Error('Memory allocation failed');
-            }
-            
-            // Initialize data
-            this.module.setValue(gainPtr, 0, 'double');
-            this.module.setValue(fbRatioPtr, 0, 'double');
-            this.module.setValue(resistancePtr, 50, 'double'); // Default 50 ohm
-            this.module.setValue(reactancePtr, 0, 'double');
+            // NEC2 결과를 파일에서 읽는 방식으로 동작하므로 메모리 직접 할당은 생략
+            // NEC2C는 파일 입출력 방식으로 동작하기 때문에 메모리 직접 조작보다 파일 IO 사용
             
             // Execute NEC2 calculation
             console.log('Executing NEC2 calculation...');
@@ -624,7 +611,7 @@ EN
             try {
                 // Run NEC2 simulation (not using pointers as arguments)
                 const args = ['-i/nec2.inp', '-o/nec2.out'];
-                result = this.module.callMain(args);
+                result = this.necFunctions.runMain(args);
                 console.log('NEC2 analysis completed with exit code:', result);
             } catch (execError) {
                 // ExitStatus errors may occur but results might still be valid
@@ -641,7 +628,7 @@ EN
             let outputContent = '';
             try {
                 outputContent = this.module.FS.readFile('/nec2.out', { encoding: 'utf8' });
-                console.log('Output file after analysis:\n', outputContent.substring(0, 500) + '...');
+                console.log('Output file after analysis:\n', outputContent);
             } catch (outError) {
                 console.warn('Could not read output file:', outError);
                 // Try alternative location
@@ -685,13 +672,8 @@ EN
                 }
             }
             
-            // Free memory
-            if (typeof this.module._free === 'function') {
-                this.module._free(gainPtr);
-                this.module._free(fbRatioPtr);
-                this.module._free(resistancePtr);
-                this.module._free(reactancePtr);
-            }
+            // 메모리 할당을 하지 않았으므로 해제도 필요 없음
+            // 직접 포인터 사용 대신 파일 기반 처리 방식 사용
             
             // Calculate VSWR (based on 50 ohm)
             const z0 = 50.0;

@@ -82,31 +82,54 @@ self.onmessage = async function(event) {
             case 'calculateRadiationPattern':
             if (!checkReady(data.callbackId)) return;
             
-            const patternResult = necFunctions.calculatePattern(
-                data.params.thetaStart, 
-                data.params.thetaEnd, 
-                data.params.thetaSteps, 
-                data.params.phiStart, 
-                data.params.phiEnd, 
-                data.params.phiSteps
-            );
-            
-            postResult(data.callbackId, patternResult);
+            // 방사 패턴 정보를 입력 파일에 저장하는 로직 추가
+            try {
+                // 입력 파일에 RP 카드 추가 (방사 패턴 계산 지시)
+                const rpCard = `RP 0 ${data.params.thetaSteps} ${data.params.phiSteps} 0 0 0 0 ${data.params.thetaStart} ${data.params.thetaEnd} ${data.params.phiStart} ${data.params.phiEnd}\n`;
+                
+                // 현재 입력 파일 읽기
+                let inputContent = necModule.FS.readFile('/nec2.inp', { encoding: 'utf8' });
+                
+                // EN 카드 전에 RP 카드 추가
+                inputContent = inputContent.replace('EN', rpCard + 'EN');
+                
+                // 수정된 입력 파일 저장
+                necModule.FS.writeFile('/nec2.inp', inputContent, { encoding: 'utf8' });
+                
+                // 방사 패턴 계산 함수 실행 - 이제 인자 없이 호출
+                const patternResult = necFunctions.calculatePattern();
+                
+                postResult(data.callbackId, patternResult);
+            } catch (error) {
+                console.error('Error calculating radiation pattern:', error);
+                postError(data.callbackId, error.message);
+            }
             break;
             
             case 'getGain':
             if (!checkReady(data.callbackId)) return;
             
-            const gainValue = necFunctions.calculatePattern(
-                data.params.theta, 
-                data.params.phi, 
-                1,  // theta steps = 1
-                0,  // phi start = 0
-                0,  // phi end = 0
-                1   // phi steps = 1
-            );
-            
-            postResult(data.callbackId, gainValue);
+            try {
+                // gain 계산을 위한 RP 카드 생성
+                const rpGainCard = `RP 0 1 1 0 0 0 0 ${data.params.theta} ${data.params.theta} ${data.params.phi} ${data.params.phi}\n`;
+                
+                // 현재 입력 파일 읽기
+                let inputContent = necModule.FS.readFile('/nec2.inp', { encoding: 'utf8' });
+                
+                // EN 카드 전에 RP 카드 추가
+                inputContent = inputContent.replace('EN', rpGainCard + 'EN');
+                
+                // 수정된 입력 파일 저장
+                necModule.FS.writeFile('/nec2.inp', inputContent, { encoding: 'utf8' });
+                
+                // 가인 계산 함수 실행 - 인자 없이 호출
+                const gainValue = necFunctions.calculatePattern();
+                
+                postResult(data.callbackId, gainValue);
+            } catch (error) {
+                console.error('Error calculating gain:', error);
+                postError(data.callbackId, error.message);
+            }
             break;
             
             case 'calculateImpedance':
@@ -305,9 +328,8 @@ async function initializeModule() {
             'number', 'number', 'number', 'number', 'number'
         ]);
         
-        necFunctions.calculatePattern = necModule.cwrap('rdpat', 'number', [
-            'number', 'number', 'number', 'number', 'number', 'number'
-        ]);
+        // rdpat 함수는 인자 없이 호출되어야 함 - 파일 기반 입출력 사용
+        necFunctions.calculatePattern = necModule.cwrap('rdpat', 'number', []);
         
         necFunctions.setLoadParameters = necModule.cwrap('load', 'number', [
             'number', 'number', 'number', 'number', 'number', 'number', 'number'
