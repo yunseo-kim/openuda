@@ -17,12 +17,13 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@nextui-org/react": "^2.2.10",
     "@react-three/drei": "^9.88.13",
     "@react-three/fiber": "^8.15.11",
     "chart.js": "^4.4.0",
     "chartjs-adapter-date-fns": "^3.0.0",
-    "framer-motion": "^10.16.4",
+    "framer-motion": "^11.5.6",
     "i18next": "^23.7.6",
     "i18next-browser-languagedetector": "^7.2.0",
     "plotly.js": "^2.27.1",

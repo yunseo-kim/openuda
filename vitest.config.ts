@@ -8,6 +8,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
+    exclude: ['emsdk/**/*', 'node_modules/**/*', 'dist/**/*'],
     coverage: {
       reporter: ['text', 'json', 'html'],
       exclude: [
@@ -16,6 +18,7 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.config.*',
         'dist/',
+        'emsdk/',
       ],
     },
   },
