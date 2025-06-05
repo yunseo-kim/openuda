@@ -26,7 +26,7 @@
     "framer-motion": "^11.5.6",
     "i18next": "^23.7.6",
     "i18next-browser-languagedetector": "^7.2.0",
-    "plotly.js": "^2.27.1",
+    "plotly.js": "^3.0.1",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
@@ -92,5 +92,10 @@
     "*.{json,css,md}": [
       "prettier --write"
     ]
+  },
+  "overrides": {
+    "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.0",
+    "three-mesh-bvh": "^0.8.0",
+    "glob": "^10.0.0"
   }
 }
