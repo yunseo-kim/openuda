@@ -34,7 +34,7 @@
     "react-plotly.js": "^2.6.0",
     "react-router-dom": "^6.20.1",
     "three": "^0.158.0",
-    "zustand": "^4.4.7"
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.5",

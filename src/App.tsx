@@ -1,106 +1,110 @@
-import { useState } from 'react'
-import { Tabs, Tab, Card, CardBody } from '@nextui-org/react'
-import { useTranslation } from 'react-i18next'
+import { useEffect } from 'react'
+import { NextUIProvider } from '@nextui-org/react'
+import { Tabs, Tab } from '@nextui-org/react'
+import { 
+  CubeIcon, 
+  ChartBarIcon, 
+  RadioIcon, 
+  InformationCircleIcon,
+  BeakerIcon 
+} from '@heroicons/react/24/outline'
+
+import { Header } from './components/layout/Header'
 import { DesignTab } from './components/tabs/DesignTab'
 import { PerformanceTab } from './components/tabs/PerformanceTab'
 import { PatternTab } from './components/tabs/PatternTab'
 import { AboutTab } from './components/tabs/AboutTab'
 import { NEC2Test } from './components/NEC2Test'
-import { Header } from './components/layout/Header'
-import { useAntennaStore } from './stores/antennaStore'
+import { useThemeStore } from './stores/ui/themeStore'
 
 function App() {
-  const { t } = useTranslation()
-  const [selectedTab, setSelectedTab] = useState('design')
-  const antennaModel = useAntennaStore((state) => state.antennaModel)
+  const { initializeTheme } = useThemeStore()
+
+  // Initialize theme on app startup
+  useEffect(() => {
+    initializeTheme()
+  }, [initializeTheme])
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container mx-auto px-4 py-6 max-w-7xl">
-        <Card className="bg-content1">
-          <CardBody className="p-0">
-            <Tabs
-              aria-label="Navigation tabs"
-              selectedKey={selectedTab}
-              onSelectionChange={(key) => setSelectedTab(key as string)}
-              classNames={{
-                tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-                cursor: "w-full bg-primary",
-                tab: "max-w-fit px-0 h-12",
-                tabContent: "group-data-[selected=true]:text-primary"
-              }}
+    <NextUIProvider>
+      <div className="min-h-screen bg-background">
+        <Header />
+        
+        <main className="container mx-auto p-6">
+          <Tabs 
+            aria-label="OpenUda navigation"
+            size="lg"
+            variant="underlined"
+            classNames={{
+              tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+              cursor: "w-full bg-primary",
+              tab: "max-w-fit px-0 h-12",
+              tabContent: "group-data-[selected=true]:text-primary"
+            }}
+          >
+            <Tab
+              key="design"
+              title={
+                <div className="flex items-center space-x-2">
+                  <CubeIcon className="w-5 h-5" />
+                  <span>Design</span>
+                </div>
+              }
             >
-              <Tab
-                key="design"
-                title={
-                  <div className="flex items-center space-x-2">
-                    <span>{t('nav.design')}</span>
-                  </div>
-                }
-              >
-                <div className="p-6">
-                  <DesignTab />
+              <DesignTab />
+            </Tab>
+            
+            <Tab
+              key="performance"
+              title={
+                <div className="flex items-center space-x-2">
+                  <ChartBarIcon className="w-5 h-5" />
+                  <span>Performance</span>
                 </div>
-              </Tab>
-              
-              <Tab
-                key="performance"
-                title={
-                  <div className="flex items-center space-x-2">
-                    <span>{t('nav.performance')}</span>
-                  </div>
-                }
-                isDisabled={!antennaModel}
-              >
-                <div className="p-6">
-                  <PerformanceTab />
+              }
+            >
+              <PerformanceTab />
+            </Tab>
+            
+            <Tab
+              key="pattern"
+              title={
+                <div className="flex items-center space-x-2">
+                  <RadioIcon className="w-5 h-5" />
+                  <span>Pattern Analysis</span>
                 </div>
-              </Tab>
-              
-              <Tab
-                key="pattern"
-                title={
-                  <div className="flex items-center space-x-2">
-                    <span>{t('nav.pattern')}</span>
-                  </div>
-                }
-                isDisabled={!antennaModel}
-              >
-                <div className="p-6">
-                  <PatternTab />
+              }
+            >
+              <PatternTab />
+            </Tab>
+            
+            <Tab
+              key="about"
+              title={
+                <div className="flex items-center space-x-2">
+                  <InformationCircleIcon className="w-5 h-5" />
+                  <span>About</span>
                 </div>
-              </Tab>
-              
-              <Tab
-                key="test"
-                title={
-                  <div className="flex items-center space-x-2">
-                    <span>Engine Test</span>
-                  </div>
-                }
-              >
-                <NEC2Test />
-              </Tab>
-              
-              <Tab
-                key="about"
-                title={
-                  <div className="flex items-center space-x-2">
-                    <span>{t('nav.about')}</span>
-                  </div>
-                }
-              >
-                <div className="p-6">
-                  <AboutTab />
+              }
+            >
+              <AboutTab />
+            </Tab>
+            
+            <Tab
+              key="engine-test"
+              title={
+                <div className="flex items-center space-x-2">
+                  <BeakerIcon className="w-5 h-5" />
+                  <span>Engine Test</span>
                 </div>
-              </Tab>
-            </Tabs>
-          </CardBody>
-        </Card>
-      </main>
-    </div>
+              }
+            >
+              <NEC2Test />
+            </Tab>
+          </Tabs>
+        </main>
+      </div>
+    </NextUIProvider>
   )
 }
 

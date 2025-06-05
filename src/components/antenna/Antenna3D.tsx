@@ -7,6 +7,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei'
 import { Group, Mesh } from 'three'
 import type { PresetElement } from '@/types/antenna/presets'
+import { useThemeStore } from '@/stores/ui/themeStore'
 
 interface Antenna3DProps {
   elements: PresetElement[]
@@ -132,6 +133,8 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
 }
 
 export function Antenna3D({ elements, frequency, showGrid = true, showLabels = false }: Antenna3DProps) {
+  const { resolvedTheme } = useThemeStore()
+  
   // Calculate wavelength for reference
   const wavelength = 299792458 / (frequency * 1e6) * 1000 // in mm
   
@@ -139,42 +142,56 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
   const minPos = Math.min(...elements.map(e => e.position))
   const maxPos = Math.max(...elements.map(e => e.position))
   const boomLength = maxPos - minPos
+
+  // Theme-based colors
+  const isDark = resolvedTheme === 'dark'
+  const backgroundColor = isDark ? '#0a0a0a' : '#f8fafc'
+  const gridColor = isDark ? '#404040' : '#6f6f6f'
+  const sectionColor = isDark ? '#606060' : '#9d9d9d'
   
   return (
     <div className="w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-900 rounded-lg relative">
-      <Canvas shadows>
+      <Canvas 
+        shadows
+        gl={{ 
+          alpha: false,
+          antialias: true 
+        }}
+        scene={{ background: null }}
+        style={{ backgroundColor }}
+      >
         <PerspectiveCamera 
           makeDefault 
           position={[8, 6, 8]} 
           fov={50}
         />
         
-        {/* Lighting */}
-        <ambientLight intensity={0.5} />
+        {/* Lighting - adjusted for theme */}
+        <ambientLight intensity={isDark ? 0.3 : 0.5} />
         <directionalLight 
           position={[10, 10, 5]} 
-          intensity={1} 
+          intensity={isDark ? 0.8 : 1} 
           castShadow
           shadow-mapSize={[2048, 2048]}
         />
         <directionalLight 
           position={[-10, -10, -5]} 
-          intensity={0.3}
+          intensity={isDark ? 0.2 : 0.3}
         />
         
         {/* Antenna */}
         <AntennaAssembly elements={elements} />
         
-        {/* Grid */}
+        {/* Grid - themed colors */}
         {showGrid && (
           <Grid 
             args={[20, 20]} 
             cellSize={1}
             cellThickness={0.5}
-            cellColor="#6f6f6f"
+            cellColor={gridColor}
             sectionSize={5}
             sectionThickness={1}
-            sectionColor="#9d9d9d"
+            sectionColor={sectionColor}
             fadeDistance={30}
             fadeStrength={1}
             followCamera={false}
@@ -194,7 +211,7 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
       </Canvas>
       
       {/* Info overlay */}
-      <div className="absolute top-4 left-4 bg-white/80 dark:bg-gray-800/80 p-3 rounded-lg text-sm">
+      <div className="absolute top-4 left-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-3 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
         <div className="font-semibold mb-1">Antenna Info</div>
         <div className="text-gray-600 dark:text-gray-300">
           <div>Frequency: {frequency} MHz</div>
@@ -205,7 +222,7 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
       </div>
       
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 bg-white/80 dark:bg-gray-800/80 p-3 rounded-lg text-sm">
+      <div className="absolute bottom-4 right-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-3 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
         <div className="font-semibold mb-1">Elements</div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -224,7 +241,7 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
       </div>
       
       {/* Axis indicator */}
-      <div className="absolute top-4 right-4 bg-white/80 dark:bg-gray-800/80 p-3 rounded-lg text-xs">
+      <div className="absolute top-4 right-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-3 rounded-lg text-xs border border-gray-200 dark:border-gray-700">
         <div className="font-semibold mb-1">View</div>
         <div className="text-gray-600 dark:text-gray-300 space-y-0.5">
           <div>Boom: X-axis (horizontal)</div>
