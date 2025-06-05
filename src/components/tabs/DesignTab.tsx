@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { Card, CardBody, Tab, Tabs, Button, Divider } from '@nextui-org/react'
+import { Card, CardBody, Tab, Tabs, Button } from '@heroui/react'
 import { CubeIcon, AdjustmentsHorizontalIcon, BeakerIcon } from '@heroicons/react/24/outline'
 import { PresetSelector } from '../antenna/PresetSelector'
 import { ParameterForm } from '../antenna/ParameterForm'
@@ -15,7 +15,7 @@ type DesignMode = 'preset' | 'manual'
 
 export function DesignTab() {
   const [designMode, setDesignMode] = useState<DesignMode>('preset')
-  
+
   // Get antenna design state from store
   const {
     frequency,
@@ -24,7 +24,7 @@ export function DesignTab() {
     setFrequency,
     setElements,
     setSelectedPresetId,
-    resetDesign
+    resetDesign,
   } = useAntennaStore()
 
   // Handle preset selection
@@ -43,7 +43,7 @@ export function DesignTab() {
       setElements([
         { type: 'reflector', position: -200, length: 500, diameter: 10 },
         { type: 'driven', position: 0, length: 480, diameter: 10 },
-        { type: 'director', position: 150, length: 460, diameter: 10 }
+        { type: 'director', position: 150, length: 460, diameter: 10 },
       ])
     }
   }
@@ -54,20 +54,22 @@ export function DesignTab() {
       <div className="space-y-4">
         <Card className="bg-white dark:bg-gray-800">
           <CardBody>
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Antenna Design</h2>
-            
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Antenna Design
+            </h2>
+
             {/* Design Mode Tabs */}
-            <Tabs 
+            <Tabs
               selectedKey={designMode}
-              onSelectionChange={(key) => setDesignMode(key as DesignMode)}
+              onSelectionChange={key => setDesignMode(key as DesignMode)}
               fullWidth
               size="sm"
               classNames={{
-                tabList: "mb-4"
+                tabList: 'mb-4',
               }}
             >
-              <Tab 
-                key="preset" 
+              <Tab
+                key="preset"
                 title={
                   <div className="flex items-center gap-2">
                     <CubeIcon className="w-4 h-4" />
@@ -75,8 +77,8 @@ export function DesignTab() {
                   </div>
                 }
               />
-              <Tab 
-                key="manual" 
+              <Tab
+                key="manual"
                 title={
                   <div className="flex items-center gap-2">
                     <AdjustmentsHorizontalIcon className="w-4 h-4" />
@@ -93,7 +95,7 @@ export function DesignTab() {
                   selectedPresetId={selectedPresetId}
                   onPresetSelect={handlePresetSelect}
                 />
-                
+
                 {selectedPresetId && (
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <Button
@@ -131,24 +133,14 @@ export function DesignTab() {
             >
               Simulate
             </Button>
-            
-            <Button
-              color="default"
-              variant="flat"
-              size="sm"
-              onPress={resetDesign}
-            >
+
+            <Button color="default" variant="flat" size="sm" onPress={resetDesign}>
               Reset
             </Button>
-            
+
             <div className="flex-1" />
-            
-            <Button
-              color="success"
-              variant="flat"
-              size="sm"
-              isDisabled={elements.length === 0}
-            >
+
+            <Button color="success" variant="flat" size="sm" isDisabled={elements.length === 0}>
               Export
             </Button>
           </CardBody>
@@ -180,4 +172,4 @@ export function DesignTab() {
       </div>
     </div>
   )
-} 
+}

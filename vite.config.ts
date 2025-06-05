@@ -21,14 +21,14 @@ export default defineConfig({
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
+            type: 'image/png',
+          },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
@@ -41,13 +41,13 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          }
-        ]
-      }
-    })
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+            },
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
@@ -57,19 +57,19 @@ export default defineConfig({
       '@/stores': path.resolve(__dirname, './src/stores'),
       '@/utils': path.resolve(__dirname, './src/utils'),
       '@/types': path.resolve(__dirname, './src/types'),
-      '@/assets': path.resolve(__dirname, './src/assets')
-    }
+      '@/assets': path.resolve(__dirname, './src/assets'),
+    },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom']
+    include: ['react', 'react-dom'],
   },
   server: {
     host: true,
     port: 3000,
     headers: {
       'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Opener-Policy': 'same-origin'
-    }
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
   },
   build: {
     target: 'esnext',
@@ -79,9 +79,9 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           three: ['three', '@react-three/fiber', '@react-three/drei'],
           charts: ['chart.js', 'react-chartjs-2', 'plotly.js', 'react-plotly.js'],
-          ui: ['@nextui-org/react', 'framer-motion']
-        }
-      }
-    }
-  }
-}) 
+          ui: ['@heroui/react', 'framer-motion'],
+        },
+      },
+    },
+  },
+})

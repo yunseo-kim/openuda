@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { Button, Card, CardBody, Input, Select, SelectItem, ScrollShadow, Divider } from '@nextui-org/react'
+import { Button, Card, CardBody, Input, Select, SelectItem, ScrollShadow } from '@heroui/react'
 import { PlusIcon, TrashIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import type { PresetElement } from '@/types/antenna/presets'
 
@@ -17,10 +17,15 @@ interface ParameterFormProps {
 const elementTypes = [
   { value: 'reflector', label: 'Reflector', color: '#ff6b6b' },
   { value: 'driven', label: 'Driven Element', color: '#4ecdc4' },
-  { value: 'director', label: 'Director', color: '#45b7d1' }
+  { value: 'director', label: 'Director', color: '#45b7d1' },
 ] as const
 
-export function ParameterForm({ frequency, elements, onFrequencyChange, onElementsChange }: ParameterFormProps) {
+export function ParameterForm({
+  frequency,
+  elements,
+  onFrequencyChange,
+  onElementsChange,
+}: ParameterFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Validate frequency
@@ -47,11 +52,9 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
   const addElement = () => {
     const newElement: PresetElement = {
       type: 'director',
-      position: elements.length > 0 
-        ? Math.max(...elements.map(e => e.position)) + 100 
-        : 0,
+      position: elements.length > 0 ? Math.max(...elements.map(e => e.position)) + 100 : 0,
       length: 100,
-      diameter: 6
+      diameter: 6,
     }
     onElementsChange([...elements, newElement])
   }
@@ -66,7 +69,7 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
     const element = elements[index]
     const newElement: PresetElement = {
       ...element,
-      position: element.position + 50
+      position: element.position + 50,
     }
     const newElements = [...elements]
     newElements.splice(index + 1, 0, newElement)
@@ -78,7 +81,7 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
     const newElements = [...elements]
     newElements[index] = {
       ...newElements[index],
-      [field]: field === 'type' ? value : parseFloat(value as string) || 0
+      [field]: field === 'type' ? value : parseFloat(value as string) || 0,
     }
     onElementsChange(newElements)
   }
@@ -87,15 +90,17 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
   const sortedElements = [...elements].sort((a, b) => a.position - b.position)
 
   // Calculate wavelength
-  const wavelength = 299792458 / (frequency * 1e6) * 1000 // in mm
+  const wavelength = (299792458 / (frequency * 1e6)) * 1000 // in mm
 
   return (
     <div className="space-y-4">
       {/* Frequency input */}
       <Card className="bg-gray-50 dark:bg-gray-700">
         <CardBody className="space-y-4">
-          <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Operating Frequency</h3>
-          
+          <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+            Operating Frequency
+          </h3>
+
           <Input
             type="number"
             label="Frequency"
@@ -107,7 +112,7 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
             isInvalid={!!errors.frequency}
             description={`Wavelength: ${(wavelength / 1000).toFixed(3)} m`}
             classNames={{
-              inputWrapper: "bg-white dark:bg-gray-800"
+              inputWrapper: 'bg-white dark:bg-gray-800',
             }}
           />
         </CardBody>
@@ -117,7 +122,9 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
       <Card className="bg-gray-50 dark:bg-gray-700">
         <CardBody className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Antenna Elements</h3>
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+              Antenna Elements
+            </h3>
             <Button
               size="sm"
               color="primary"
@@ -138,19 +145,24 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
               <div className="space-y-4">
                 {sortedElements.map((element, index) => {
                   const originalIndex = elements.findIndex(e => e === element)
-                  
+
                   return (
                     <Card key={originalIndex} className="bg-white dark:bg-gray-800">
                       <CardBody className="space-y-3 p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div 
+                            <div
                               className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: elementTypes.find(t => t.value === element.type)?.color }}
+                              style={{
+                                backgroundColor: elementTypes.find(t => t.value === element.type)
+                                  ?.color,
+                              }}
                             />
-                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">Element {index + 1}</span>
+                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                              Element {index + 1}
+                            </span>
                           </div>
-                          
+
                           <div className="flex gap-1">
                             <Button
                               isIconOnly
@@ -171,68 +183,72 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                             </Button>
                           </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-3">
                           <Select
                             size="sm"
                             label="Type"
                             selectedKeys={[element.type]}
-                            onSelectionChange={(keys) => {
+                            onSelectionChange={keys => {
                               const value = Array.from(keys)[0] as string
                               updateElement(originalIndex, 'type', value)
                             }}
                             classNames={{
-                              trigger: "bg-gray-50 dark:bg-gray-700"
+                              trigger: 'bg-gray-50 dark:bg-gray-700',
                             }}
                           >
                             {elementTypes.map(type => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
+                              <SelectItem key={type.value}>{type.label}</SelectItem>
                             ))}
                           </Select>
-                          
+
                           <Input
                             size="sm"
                             type="number"
                             label="Position"
                             value={element.position.toString()}
-                            onValueChange={(value) => updateElement(originalIndex, 'position', value)}
-                            endContent={<span className="text-xs text-gray-500 dark:text-gray-400">mm</span>}
+                            onValueChange={value => updateElement(originalIndex, 'position', value)}
+                            endContent={
+                              <span className="text-xs text-gray-500 dark:text-gray-400">mm</span>
+                            }
                             classNames={{
-                              inputWrapper: "bg-gray-50 dark:bg-gray-700"
+                              inputWrapper: 'bg-gray-50 dark:bg-gray-700',
                             }}
                           />
-                          
+
                           <Input
                             size="sm"
                             type="number"
                             label="Length"
                             value={element.length.toString()}
-                            onValueChange={(value) => updateElement(originalIndex, 'length', value)}
-                            endContent={<span className="text-xs text-gray-500 dark:text-gray-400">mm</span>}
+                            onValueChange={value => updateElement(originalIndex, 'length', value)}
+                            endContent={
+                              <span className="text-xs text-gray-500 dark:text-gray-400">mm</span>
+                            }
                             classNames={{
-                              inputWrapper: "bg-gray-50 dark:bg-gray-700"
+                              inputWrapper: 'bg-gray-50 dark:bg-gray-700',
                             }}
                           />
-                          
+
                           <Input
                             size="sm"
                             type="number"
                             label="Diameter"
                             value={element.diameter.toString()}
-                            onValueChange={(value) => updateElement(originalIndex, 'diameter', value)}
-                            endContent={<span className="text-xs text-gray-500 dark:text-gray-400">mm</span>}
+                            onValueChange={value => updateElement(originalIndex, 'diameter', value)}
+                            endContent={
+                              <span className="text-xs text-gray-500 dark:text-gray-400">mm</span>
+                            }
                             classNames={{
-                              inputWrapper: "bg-gray-50 dark:bg-gray-700"
+                              inputWrapper: 'bg-gray-50 dark:bg-gray-700',
                             }}
                           />
                         </div>
-                        
+
                         {/* Wavelength ratios */}
                         <div className="text-xs text-gray-500 dark:text-gray-400 pt-1">
-                          Length: {(element.length / wavelength).toFixed(3)}λ • 
-                          Position: {(element.position / wavelength).toFixed(3)}λ
+                          Length: {(element.length / wavelength).toFixed(3)}λ • Position:{' '}
+                          {(element.position / wavelength).toFixed(3)}λ
                         </div>
                       </CardBody>
                     </Card>
@@ -248,8 +264,10 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
       {elements.length > 0 && (
         <Card className="bg-gray-50 dark:bg-gray-700">
           <CardBody className="space-y-3">
-            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Quick Actions</h3>
-            
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+              Quick Actions
+            </h3>
+
             <div className="flex gap-2 flex-wrap">
               <Button
                 size="sm"
@@ -262,13 +280,13 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
               >
                 Sort by Position
               </Button>
-              
+
               <Button
                 size="sm"
                 variant="flat"
                 onPress={() => {
                   // Clear all elements
-                  if (confirm('Remove all elements?')) {
+                  if (window.confirm('Remove all elements?')) {
                     onElementsChange([])
                   }
                 }}
@@ -282,4 +300,4 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
       )}
     </div>
   )
-} 
+}

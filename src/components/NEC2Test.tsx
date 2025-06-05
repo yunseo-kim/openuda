@@ -1,16 +1,25 @@
 import { useState } from 'react'
-import { Button, Card, CardBody, CardHeader, Divider, Spinner, Code } from '@nextui-org/react'
+import { Button, Card, CardBody, CardHeader, Divider, Spinner, Code } from '@heroui/react'
 import { CheckCircleIcon, XCircleIcon, PlayIcon } from '@heroicons/react/24/outline'
-import { testNEC2Engine, nec2Engine, simulateAntenna, type AntennaParams, type SimulationResults } from '../utils/nec2c'
+import {
+  testNEC2Engine,
+  nec2Engine,
+  simulateAntenna,
+  type AntennaParams,
+  type SimulationResults,
+} from '../utils/nec2c'
 
 /**
  * NEC2C Engine Test Component
- * 
+ *
  * This component provides a user interface for testing the NEC2C WebAssembly engine.
  * It includes engine loading status, basic functionality tests, and a simple antenna simulation.
  */
 export function NEC2Test() {
-  const [engineStatus, setEngineStatus] = useState<{ loaded: boolean; loading: boolean }>({ loaded: false, loading: false })
+  const [engineStatus, setEngineStatus] = useState<{ loaded: boolean; loading: boolean }>({
+    loaded: false,
+    loading: false,
+  })
   const [testResult, setTestResult] = useState<boolean | null>(null)
   const [isRunningTest, setIsRunningTest] = useState(false)
   const [simulationResult, setSimulationResult] = useState<SimulationResults | null>(null)
@@ -21,7 +30,7 @@ export function NEC2Test() {
     try {
       setError(null)
       setEngineStatus({ loaded: false, loading: true })
-      
+
       await nec2Engine.loadModule()
       setEngineStatus(nec2Engine.getStatus())
     } catch (err) {
@@ -36,7 +45,7 @@ export function NEC2Test() {
       setError(null)
       setIsRunningTest(true)
       setTestResult(null)
-      
+
       const result = await testNEC2Engine()
       setTestResult(result)
     } catch (err) {
@@ -52,36 +61,36 @@ export function NEC2Test() {
     try {
       setError(null)
       setSimulationResult(null)
-      
+
       // Simple 3-element Yagi antenna for 146 MHz
       const antennaParams: AntennaParams = {
         frequency: 146,
         elements: [
           {
             type: 'reflector',
-            position: -0.15,  // 15cm behind driven element
-            length: 1.04,     // 104cm
-            diameter: 0.006,  // 6mm
-            segments: 21
+            position: -0.15, // 15cm behind driven element
+            length: 1.04, // 104cm
+            diameter: 0.006, // 6mm
+            segments: 21,
           },
           {
             type: 'driven',
-            position: 0,      // origin
-            length: 1.0,      // 100cm  
-            diameter: 0.006,  // 6mm
-            segments: 21
+            position: 0, // origin
+            length: 1.0, // 100cm
+            diameter: 0.006, // 6mm
+            segments: 21,
           },
           {
             type: 'director',
-            position: 0.12,   // 12cm in front of driven element
-            length: 0.96,     // 96cm
-            diameter: 0.006,  // 6mm
-            segments: 21
-          }
+            position: 0.12, // 12cm in front of driven element
+            length: 0.96, // 96cm
+            diameter: 0.006, // 6mm
+            segments: 21,
+          },
         ],
-        groundType: 'perfect'
+        groundType: 'perfect',
       }
-      
+
       const result = await simulateAntenna(antennaParams)
       setSimulationResult(result)
     } catch (err) {
@@ -93,7 +102,9 @@ export function NEC2Test() {
     <div className="space-y-6 p-6 max-w-4xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">NEC2C Engine Test</h1>
-        <p className="text-gray-600">Test the WebAssembly-compiled NEC2C electromagnetic simulation engine</p>
+        <p className="text-gray-600">
+          Test the WebAssembly-compiled NEC2C electromagnetic simulation engine
+        </p>
       </div>
 
       {/* Engine Status */}
@@ -115,11 +126,15 @@ export function NEC2Test() {
                   <XCircleIcon className="h-5 w-5 text-red-500" />
                 )}
                 <span className={engineStatus.loaded ? 'text-green-600' : 'text-red-600'}>
-                  {engineStatus.loading ? 'Loading...' : engineStatus.loaded ? 'Ready' : 'Not Loaded'}
+                  {engineStatus.loading
+                    ? 'Loading...'
+                    : engineStatus.loaded
+                      ? 'Ready'
+                      : 'Not Loaded'}
                 </span>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <Button
                 color="primary"
@@ -146,7 +161,7 @@ export function NEC2Test() {
             <p className="text-gray-600">
               Run a basic test to verify the engine can perform electromagnetic simulations.
             </p>
-            
+
             <div className="flex items-center justify-between">
               <span className="font-medium">Test Result:</span>
               <div className="flex items-center gap-2">
@@ -157,17 +172,26 @@ export function NEC2Test() {
                 ) : testResult === false ? (
                   <XCircleIcon className="h-5 w-5 text-red-500" />
                 ) : null}
-                <span className={
-                  testResult === true ? 'text-green-600' : 
-                  testResult === false ? 'text-red-600' : 'text-gray-500'
-                }>
-                  {isRunningTest ? 'Running...' : 
-                   testResult === true ? 'Passed' : 
-                   testResult === false ? 'Failed' : 'Not Run'}
+                <span
+                  className={
+                    testResult === true
+                      ? 'text-green-600'
+                      : testResult === false
+                        ? 'text-red-600'
+                        : 'text-gray-500'
+                  }
+                >
+                  {isRunningTest
+                    ? 'Running...'
+                    : testResult === true
+                      ? 'Passed'
+                      : testResult === false
+                        ? 'Failed'
+                        : 'Not Run'}
                 </span>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <Button
                 color="primary"
@@ -195,7 +219,7 @@ export function NEC2Test() {
             <p className="text-gray-600">
               Simulate a 3-element Yagi antenna for 146 MHz (2m amateur radio band).
             </p>
-            
+
             <div className="flex gap-3">
               <Button
                 color="secondary"
@@ -207,7 +231,7 @@ export function NEC2Test() {
                 Simulate Antenna
               </Button>
             </div>
-            
+
             {simulationResult && (
               <div className="mt-6 space-y-4">
                 <h3 className="text-lg font-medium">Simulation Results</h3>
@@ -221,7 +245,9 @@ export function NEC2Test() {
                       </div>
                       <div className="flex justify-between">
                         <span>F/B Ratio:</span>
-                        <span className="font-mono">{simulationResult.frontToBackRatio.toFixed(2)} dB</span>
+                        <span className="font-mono">
+                          {simulationResult.frontToBackRatio.toFixed(2)} dB
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>VSWR:</span>
@@ -233,17 +259,21 @@ export function NEC2Test() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-medium text-gray-700 mb-2">Input Impedance</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Resistance:</span>
-                        <span className="font-mono">{simulationResult.inputImpedance.resistance.toFixed(1)} Ω</span>
+                        <span className="font-mono">
+                          {simulationResult.inputImpedance.resistance.toFixed(1)} Ω
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Reactance:</span>
-                        <span className="font-mono">{simulationResult.inputImpedance.reactance.toFixed(1)} Ω</span>
+                        <span className="font-mono">
+                          {simulationResult.inputImpedance.reactance.toFixed(1)} Ω
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Frequency:</span>
@@ -283,16 +313,23 @@ export function NEC2Test() {
         <Divider />
         <CardBody>
           <div className="space-y-3 text-sm text-gray-600">
-            <p>1. <strong>Load Engine:</strong> First, load the NEC2C WebAssembly module.</p>
-            <p>2. <strong>Run Test:</strong> Verify the engine works with a simple dipole test.</p>
-            <p>3. <strong>Simulate Antenna:</strong> Test with a realistic 3-element Yagi antenna.</p>
+            <p>
+              1. <strong>Load Engine:</strong> First, load the NEC2C WebAssembly module.
+            </p>
+            <p>
+              2. <strong>Run Test:</strong> Verify the engine works with a simple dipole test.
+            </p>
+            <p>
+              3. <strong>Simulate Antenna:</strong> Test with a realistic 3-element Yagi antenna.
+            </p>
             <p className="mt-4 text-xs text-gray-500">
-              Note: The engine may take a few seconds to load initially due to WebAssembly compilation.
-              SharedArrayBuffer support enables multithreaded simulation for better performance.
+              Note: The engine may take a few seconds to load initially due to WebAssembly
+              compilation. SharedArrayBuffer support enables multithreaded simulation for better
+              performance.
             </p>
           </div>
         </CardBody>
       </Card>
     </div>
   )
-} 
+}

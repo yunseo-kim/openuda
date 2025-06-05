@@ -3,14 +3,14 @@
  */
 
 import { useEffect } from 'react'
-import { NextUIProvider } from '@nextui-org/react'
-import { Tabs, Tab } from '@nextui-org/react'
-import { 
-  CubeIcon, 
-  ChartBarIcon, 
-  RadioIcon, 
+import { HeroUIProvider } from '@heroui/react'
+import { Tabs, Tab } from '@heroui/react'
+import {
+  CubeIcon,
+  ChartBarIcon,
+  RadioIcon,
   InformationCircleIcon,
-  BeakerIcon 
+  BeakerIcon,
 } from '@heroicons/react/24/outline'
 
 import { Header } from './components/layout/Header'
@@ -30,20 +30,21 @@ function App() {
   }, [initializeTheme])
 
   return (
-    <NextUIProvider className={resolvedTheme}>
+    <HeroUIProvider className={resolvedTheme}>
       <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
         <Header />
-        
+
         <main className="container mx-auto p-6">
-          <Tabs 
+          <Tabs
             aria-label="OpenUda navigation"
             size="lg"
             variant="underlined"
             classNames={{
-              tabList: "gap-6 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700",
-              cursor: "w-full bg-primary",
-              tab: "max-w-fit px-0 h-12",
-              tabContent: "group-data-[selected=true]:text-primary"
+              tabList:
+                'gap-6 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700',
+              cursor: 'w-full bg-primary',
+              tab: 'max-w-fit px-0 h-12',
+              tabContent: 'group-data-[selected=true]:text-primary',
             }}
           >
             <Tab
@@ -57,7 +58,7 @@ function App() {
             >
               <DesignTab />
             </Tab>
-            
+
             <Tab
               key="performance"
               title={
@@ -69,7 +70,7 @@ function App() {
             >
               <PerformanceTab />
             </Tab>
-            
+
             <Tab
               key="pattern"
               title={
@@ -81,7 +82,7 @@ function App() {
             >
               <PatternTab />
             </Tab>
-            
+
             <Tab
               key="about"
               title={
@@ -93,7 +94,7 @@ function App() {
             >
               <AboutTab />
             </Tab>
-            
+
             <Tab
               key="engine-test"
               title={
@@ -108,8 +109,8 @@ function App() {
           </Tabs>
         </main>
       </div>
-    </NextUIProvider>
+    </HeroUIProvider>
   )
 }
 
-export default App 
+export default App

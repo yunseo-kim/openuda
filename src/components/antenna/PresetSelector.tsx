@@ -2,7 +2,7 @@
  * Antenna Preset Selector Component
  */
 
-import { Card, CardBody, CardHeader, Chip, Input, ScrollShadow } from '@nextui-org/react'
+import { Card, CardBody, CardHeader, Chip, Input, ScrollShadow } from '@heroui/react'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { useState, useMemo } from 'react'
 import { antennaPresets } from '@/utils/antenna/presets'
@@ -17,14 +17,14 @@ const categoryColors = {
   beginner: 'success',
   intermediate: 'warning',
   advanced: 'danger',
-  experimental: 'secondary'
+  experimental: 'secondary',
 } as const
 
 const categoryLabels = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
-  experimental: 'Experimental'
+  experimental: 'Experimental',
 } as const
 
 export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelectorProps) {
@@ -34,13 +34,14 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
   // Filter presets based on search and category
   const filteredPresets = useMemo(() => {
     return antennaPresets.filter(preset => {
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch =
+        searchQuery === '' ||
         preset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         preset.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         preset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      
+
       const matchesCategory = selectedCategory === 'all' || preset.category === selectedCategory
-      
+
       return matchesSearch && matchesCategory
     })
   }, [searchQuery, selectedCategory])
@@ -56,11 +57,11 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
           onValueChange={setSearchQuery}
           startContent={<MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />}
           classNames={{
-            input: "text-sm",
-            inputWrapper: "h-10 bg-gray-50 dark:bg-gray-700"
+            input: 'text-sm',
+            inputWrapper: 'h-10 bg-gray-50 dark:bg-gray-700',
           }}
         />
-        
+
         {/* Category filters */}
         <div className="flex gap-2 flex-wrap">
           <Chip
@@ -96,48 +97,38 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
               isPressable
               isHoverable
               className={`cursor-pointer transition-all bg-gray-50 dark:bg-gray-700 ${
-                selectedPresetId === preset.id 
-                  ? 'ring-2 ring-primary ring-offset-2' 
-                  : ''
+                selectedPresetId === preset.id ? 'ring-2 ring-primary ring-offset-2' : ''
               }`}
               onPress={() => onPresetSelect(preset)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between w-full">
                   <div>
-                    <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{preset.name}</h4>
+                    <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                      {preset.name}
+                    </h4>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {preset.frequency} MHz • {preset.elements.length} elements
                     </p>
                   </div>
-                  <Chip 
-                    size="sm" 
-                    color={categoryColors[preset.category]}
-                    variant="flat"
-                  >
+                  <Chip size="sm" color={categoryColors[preset.category]} variant="flat">
                     {categoryLabels[preset.category]}
                   </Chip>
                 </div>
               </CardHeader>
-              
+
               <CardBody className="pt-0">
                 <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">
                   {preset.description}
                 </p>
-                
+
                 {/* Element breakdown */}
                 <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400">
-                  <span>
-                    {preset.elements.filter(e => e.type === 'reflector').length} Refl
-                  </span>
-                  <span>
-                    {preset.elements.filter(e => e.type === 'driven').length} Driven
-                  </span>
-                  <span>
-                    {preset.elements.filter(e => e.type === 'director').length} Dir
-                  </span>
+                  <span>{preset.elements.filter(e => e.type === 'reflector').length} Refl</span>
+                  <span>{preset.elements.filter(e => e.type === 'driven').length} Driven</span>
+                  <span>{preset.elements.filter(e => e.type === 'director').length} Dir</span>
                 </div>
-                
+
                 {/* Tags */}
                 {preset.tags.length > 0 && (
                   <div className="flex gap-1 flex-wrap mt-2">
@@ -151,7 +142,7 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
               </CardBody>
             </Card>
           ))}
-          
+
           {filteredPresets.length === 0 && (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <p>No presets found matching your criteria.</p>
@@ -162,4 +153,4 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
       </ScrollShadow>
     </div>
   )
-} 
+}

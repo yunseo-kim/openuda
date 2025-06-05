@@ -1,19 +1,73 @@
 import js from '@eslint/js'
-import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsParser from '@typescript-eslint/parser'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'emsdk/**/*', 'node_modules/**/*', 'public/js/**/*', 'js/**/*'] },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: {
-        ...globals.browser,
-        ...globals.node
+        window: 'readonly',
+        document: 'readonly',
+        console: 'readonly',
+        __dirname: 'readonly',
+        global: 'readonly',
+        performance: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        fetch: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        history: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        FormData: 'readonly',
+        File: 'readonly',
+        Blob: 'readonly',
+        FileReader: 'readonly',
+        Image: 'readonly',
+        Event: 'readonly',
+        CustomEvent: 'readonly',
+        EventTarget: 'readonly',
+        Element: 'readonly',
+        HTMLElement: 'readonly',
+        Node: 'readonly',
+        NodeList: 'readonly',
+        HTMLCollection: 'readonly',
+        MutationObserver: 'readonly',
+        IntersectionObserver: 'readonly',
+        ResizeObserver: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+        Promise: 'readonly',
+        Map: 'readonly',
+        Set: 'readonly',
+        WeakMap: 'readonly',
+        WeakSet: 'readonly',
+        Symbol: 'readonly',
+        Proxy: 'readonly',
+        Reflect: 'readonly',
+        ArrayBuffer: 'readonly',
+        DataView: 'readonly',
+        Int8Array: 'readonly',
+        Uint8Array: 'readonly',
+        Uint8ClampedArray: 'readonly',
+        Int16Array: 'readonly',
+        Uint16Array: 'readonly',
+        Int32Array: 'readonly',
+        Uint32Array: 'readonly',
+        Float32Array: 'readonly',
+        Float64Array: 'readonly',
+        BigInt64Array: 'readonly',
+        BigUint64Array: 'readonly'
       },
       parser: tsParser,
       parserOptions: {
