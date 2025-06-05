@@ -5,6 +5,7 @@ import { DesignTab } from './components/tabs/DesignTab'
 import { PerformanceTab } from './components/tabs/PerformanceTab'
 import { PatternTab } from './components/tabs/PatternTab'
 import { AboutTab } from './components/tabs/AboutTab'
+import { NEC2Test } from './components/NEC2Test'
 import { Header } from './components/layout/Header'
 import { useAntennaStore } from './stores/antennaStore'
 
@@ -70,6 +71,17 @@ function App() {
                 <div className="p-6">
                   <PatternTab />
                 </div>
+              </Tab>
+              
+              <Tab
+                key="test"
+                title={
+                  <div className="flex items-center space-x-2">
+                    <span>Engine Test</span>
+                  </div>
+                }
+              >
+                <NEC2Test />
               </Tab>
               
               <Tab
