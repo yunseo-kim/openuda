@@ -79,7 +79,9 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
   const scaleToScene = (mm: number) => mm / 100
 
   return (
-    <group ref={groupRef}>
+    // Rotate entire antenna assembly 90 degrees around X-axis (boom axis)
+    // so elements are horizontal (parallel to ground)
+    <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
       {/* Boom - horizontal along X axis */}
       <mesh
         position={[scaleToScene(boomCenter), 0, 0]}
@@ -218,7 +220,7 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
         <div className="font-semibold mb-1">View</div>
         <div className="text-gray-600 dark:text-gray-300 space-y-0.5">
           <div>Boom: X-axis (horizontal)</div>
-          <div>Elements: Y-axis (vertical)</div>
+          <div>Elements: Z-axis (horizontal)</div>
         </div>
       </div>
     </div>
