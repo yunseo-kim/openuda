@@ -267,8 +267,7 @@ build/
 emsdk/upstream/
 emsdk/downloads/
 
-# Lock files (keep only one)
-package-lock.json
+# Lock files (keep only package-lock.json, remove others)
 yarn.lock
 pnpm-lock.yaml
 
