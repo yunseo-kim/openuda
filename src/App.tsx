@@ -1,3 +1,7 @@
+/**
+ * Main App Component
+ */
+
 import { useEffect } from 'react'
 import { NextUIProvider } from '@nextui-org/react'
 import { Tabs, Tab } from '@nextui-org/react'
@@ -18,7 +22,7 @@ import { NEC2Test } from './components/NEC2Test'
 import { useThemeStore } from './stores/ui/themeStore'
 
 function App() {
-  const { initializeTheme } = useThemeStore()
+  const { initializeTheme, resolvedTheme } = useThemeStore()
 
   // Initialize theme on app startup
   useEffect(() => {
@@ -26,8 +30,8 @@ function App() {
   }, [initializeTheme])
 
   return (
-    <NextUIProvider>
-      <div className="min-h-screen bg-background">
+    <NextUIProvider className={resolvedTheme}>
+      <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
         <Header />
         
         <main className="container mx-auto p-6">
@@ -36,7 +40,7 @@ function App() {
             size="lg"
             variant="underlined"
             classNames={{
-              tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+              tabList: "gap-6 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-gray-700",
               cursor: "w-full bg-primary",
               tab: "max-w-fit px-0 h-12",
               tabContent: "group-data-[selected=true]:text-primary"

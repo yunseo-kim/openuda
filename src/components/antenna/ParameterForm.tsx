@@ -92,9 +92,9 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
   return (
     <div className="space-y-4">
       {/* Frequency input */}
-      <Card>
+      <Card className="bg-gray-50 dark:bg-gray-700">
         <CardBody className="space-y-4">
-          <h3 className="font-semibold text-sm">Operating Frequency</h3>
+          <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Operating Frequency</h3>
           
           <Input
             type="number"
@@ -102,19 +102,22 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
             placeholder="Enter frequency"
             value={frequency.toString()}
             onValueChange={handleFrequencyChange}
-            endContent={<span className="text-gray-500">MHz</span>}
+            endContent={<span className="text-gray-500 dark:text-gray-400">MHz</span>}
             errorMessage={errors.frequency}
             isInvalid={!!errors.frequency}
             description={`Wavelength: ${(wavelength / 1000).toFixed(3)} m`}
+            classNames={{
+              inputWrapper: "bg-white dark:bg-gray-800"
+            }}
           />
         </CardBody>
       </Card>
 
       {/* Elements */}
-      <Card>
+      <Card className="bg-gray-50 dark:bg-gray-700">
         <CardBody className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm">Antenna Elements</h3>
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Antenna Elements</h3>
             <Button
               size="sm"
               color="primary"
@@ -126,7 +129,7 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
           </div>
 
           {elements.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <p>No elements added yet.</p>
               <p className="text-sm mt-1">Click "Add Element" to start designing.</p>
             </div>
@@ -137,7 +140,7 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                   const originalIndex = elements.findIndex(e => e === element)
                   
                   return (
-                    <Card key={originalIndex} className="bg-gray-50 dark:bg-gray-900">
+                    <Card key={originalIndex} className="bg-white dark:bg-gray-800">
                       <CardBody className="space-y-3 p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -145,7 +148,7 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                               className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: elementTypes.find(t => t.value === element.type)?.color }}
                             />
-                            <span className="font-medium text-sm">Element {index + 1}</span>
+                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100">Element {index + 1}</span>
                           </div>
                           
                           <div className="flex gap-1">
@@ -178,6 +181,9 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                               const value = Array.from(keys)[0] as string
                               updateElement(originalIndex, 'type', value)
                             }}
+                            classNames={{
+                              trigger: "bg-gray-50 dark:bg-gray-700"
+                            }}
                           >
                             {elementTypes.map(type => (
                               <SelectItem key={type.value} value={type.value}>
@@ -192,7 +198,10 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                             label="Position"
                             value={element.position.toString()}
                             onValueChange={(value) => updateElement(originalIndex, 'position', value)}
-                            endContent={<span className="text-xs text-gray-500">mm</span>}
+                            endContent={<span className="text-xs text-gray-500 dark:text-gray-400">mm</span>}
+                            classNames={{
+                              inputWrapper: "bg-gray-50 dark:bg-gray-700"
+                            }}
                           />
                           
                           <Input
@@ -201,7 +210,10 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                             label="Length"
                             value={element.length.toString()}
                             onValueChange={(value) => updateElement(originalIndex, 'length', value)}
-                            endContent={<span className="text-xs text-gray-500">mm</span>}
+                            endContent={<span className="text-xs text-gray-500 dark:text-gray-400">mm</span>}
+                            classNames={{
+                              inputWrapper: "bg-gray-50 dark:bg-gray-700"
+                            }}
                           />
                           
                           <Input
@@ -210,12 +222,15 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
                             label="Diameter"
                             value={element.diameter.toString()}
                             onValueChange={(value) => updateElement(originalIndex, 'diameter', value)}
-                            endContent={<span className="text-xs text-gray-500">mm</span>}
+                            endContent={<span className="text-xs text-gray-500 dark:text-gray-400">mm</span>}
+                            classNames={{
+                              inputWrapper: "bg-gray-50 dark:bg-gray-700"
+                            }}
                           />
                         </div>
                         
                         {/* Wavelength ratios */}
-                        <div className="text-xs text-gray-500 pt-1">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 pt-1">
                           Length: {(element.length / wavelength).toFixed(3)}λ • 
                           Position: {(element.position / wavelength).toFixed(3)}λ
                         </div>
@@ -231,9 +246,9 @@ export function ParameterForm({ frequency, elements, onFrequencyChange, onElemen
 
       {/* Quick actions */}
       {elements.length > 0 && (
-        <Card>
+        <Card className="bg-gray-50 dark:bg-gray-700">
           <CardBody className="space-y-3">
-            <h3 className="font-semibold text-sm">Quick Actions</h3>
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Quick Actions</h3>
             
             <div className="flex gap-2 flex-wrap">
               <Button

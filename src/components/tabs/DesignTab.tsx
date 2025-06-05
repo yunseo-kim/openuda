@@ -49,12 +49,12 @@ export function DesignTab() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       {/* Left Panel - Design Input */}
       <div className="space-y-4">
-        <Card>
+        <Card className="bg-white dark:bg-gray-800">
           <CardBody>
-            <h2 className="text-lg font-semibold mb-4">Antenna Design</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Antenna Design</h2>
             
             {/* Design Mode Tabs */}
             <Tabs 
@@ -95,7 +95,7 @@ export function DesignTab() {
                 />
                 
                 {selectedPresetId && (
-                  <div className="mt-4 pt-4 border-t">
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <Button
                       size="sm"
                       variant="flat"
@@ -120,7 +120,7 @@ export function DesignTab() {
         </Card>
 
         {/* Action Buttons */}
-        <Card>
+        <Card className="bg-white dark:bg-gray-800">
           <CardBody className="flex flex-row gap-3">
             <Button
               color="primary"
@@ -157,7 +157,7 @@ export function DesignTab() {
 
       {/* Right Panel - 3D Visualization */}
       <div className="space-y-4">
-        <Card className="h-full min-h-[600px]">
+        <Card className="h-full min-h-[600px] bg-white dark:bg-gray-800">
           <CardBody className="p-0">
             {elements.length > 0 ? (
               <Antenna3D
@@ -167,7 +167,7 @@ export function DesignTab() {
                 showLabels={false}
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                 <div className="text-center">
                   <CubeIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <p className="text-lg mb-2">No Antenna Design</p>

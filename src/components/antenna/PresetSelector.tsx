@@ -57,7 +57,7 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
           startContent={<MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />}
           classNames={{
             input: "text-sm",
-            inputWrapper: "h-10"
+            inputWrapper: "h-10 bg-gray-50 dark:bg-gray-700"
           }}
         />
         
@@ -95,7 +95,7 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
               key={preset.id}
               isPressable
               isHoverable
-              className={`cursor-pointer transition-all ${
+              className={`cursor-pointer transition-all bg-gray-50 dark:bg-gray-700 ${
                 selectedPresetId === preset.id 
                   ? 'ring-2 ring-primary ring-offset-2' 
                   : ''
@@ -105,8 +105,8 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between w-full">
                   <div>
-                    <h4 className="font-semibold text-sm">{preset.name}</h4>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{preset.name}</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {preset.frequency} MHz • {preset.elements.length} elements
                     </p>
                   </div>
@@ -121,12 +121,12 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
               </CardHeader>
               
               <CardBody className="pt-0">
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">
                   {preset.description}
                 </p>
                 
                 {/* Element breakdown */}
-                <div className="flex gap-3 text-xs text-gray-500">
+                <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400">
                   <span>
                     {preset.elements.filter(e => e.type === 'reflector').length} Refl
                   </span>
@@ -153,7 +153,7 @@ export function PresetSelector({ selectedPresetId, onPresetSelect }: PresetSelec
           ))}
           
           {filteredPresets.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <p>No presets found matching your criteria.</p>
               <p className="text-sm mt-1">Try adjusting your search or filters.</p>
             </div>
