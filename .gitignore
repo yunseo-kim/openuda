@@ -37,8 +37,8 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 lerna-debug.log*
-.pnpm-debug.log*
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -107,10 +107,10 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -202,4 +202,73 @@ dist
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,visualstudiocode
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.lcov
+.nyc_output
+
+# Production
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript
+*.tsbuildinfo
+
+# PWA files
+public/sw.js
+public/workbox-*.js
+
+# Temporary files
+*.tmp
+*.temp
+.cache
+
+# OS files
+Thumbs.db
+
+# Husky
+.husky/_
+
+# Vitest
+vitest.config.ts.timestamp-*
+
+# Build artifacts
+build/
+.vercel
+.netlify
+
+# WASM build files
+*.wasm.map
+emsdk/upstream/
+emsdk/downloads/
+
+# Lock files (keep only one)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 

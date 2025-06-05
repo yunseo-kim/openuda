@@ -1,417 +1,52 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO Meta Tags -->
     <title>OpenUda - Yagi-Uda Antenna Design Web App</title>
-    <meta name="description" content="A web application for designing, analyzing, and optimizing Yagi-Uda antennas entirely in the browser">
-    <link rel="stylesheet" href="css/normalize.css">
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="icon" href="assets/favicon.ico">
+    <meta name="description" content="Design, analyze, and optimize Yagi-Uda antennas entirely in your browser with this modern web application." />
+    <meta name="keywords" content="yagi-uda, antenna, design, optimization, NEC2C, WebAssembly, radio, ham radio, antenna modeling" />
+    <meta name="author" content="Yunseo Kim" />
+    
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="OpenUda - Yagi-Uda Antenna Design Web App">
-    <meta property="og:description" content="Design, analyze, and optimize Yagi-Uda antennas entirely in your browser">
-    <meta property="og:type" content="website">
-    <!-- Preload critical assets -->
-    <link rel="preload" href="js/app.js" as="script">
-</head>
-<body>
-    <header>
-        <div class="header-container">
-            <div class="logo">
-                <h1>OpenUda</h1>
-                <span class="subtitle">Yagi-Uda Antenna Designer</span>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="#" class="tab-link active" data-tab="design">Design</a></li>
-                    <li><a href="#" class="tab-link" data-tab="performance">Performance</a></li>
-                    <li><a href="#" class="tab-link" data-tab="pattern">Pattern</a></li>
-                    <li><a href="#" class="tab-link" data-tab="about">About</a></li>
-                </ul>
-            </nav>
-            <div id="status-display">Initializing...</div>
-        </div>
-    </header>
+    <meta property="og:title" content="OpenUda - Yagi-Uda Antenna Design Web App" />
+    <meta property="og:description" content="Design, analyze, and optimize Yagi-Uda antennas entirely in your browser with this modern web application." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://yunseo-kim.github.io/openuda/" />
+    <meta property="og:image" content="https://yunseo-kim.github.io/openuda/og-image.png" />
     
-    <!-- 알림 표시를 위한 요소 -->
-    <div id="notification" class="notification">
-        <div class="notification-content">
-            <div class="notification-title">Title</div>
-            <div class="notification-message">Message</div>
-        </div>
-        <button class="notification-close">&times;</button>
-    </div>
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OpenUda - Yagi-Uda Antenna Design Web App" />
+    <meta name="twitter:description" content="Design, analyze, and optimize Yagi-Uda antennas entirely in your browser with this modern web application." />
+    <meta name="twitter:image" content="https://yunseo-kim.github.io/openuda/og-image.png" />
     
-    <!-- 로딩 오버레이 -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <div id="loading-message" class="loading-message">Loading...</div>
-    </div>
-
-    <main>
-        <!-- Design Tab (Main Tab) -->
-        <section id="design" class="tab-content active">
-            <div class="design-container">
-                <div class="parameters-panel">
-                    <h2>Antenna Parameters</h2>
-                    <div class="parameter-group">
-                        <h3>Frequency Settings</h3>
-                        <div class="input-group">
-                            <label for="center-frequency">Center Frequency (MHz):</label>
-                            <input type="number" id="center-frequency" value="144" step="0.1" min="1">
-                        </div>
-                    </div>
-                    
-                    <div class="parameter-group">
-                        <h3>File Operations</h3>
-                        <div class="button-group">
-                            <button id="load-preset-btn" class="btn btn-secondary">Load Preset</button>
-                            <button id="import-btn" class="btn btn-secondary">Import</button>
-                            <button id="export-btn" class="btn btn-secondary">Export</button>
-                        </div>
-                    </div>
-
-                    <div class="parameter-group">
-                        <h3>Element Settings</h3>
-                        <div class="element-list">
-                            <div class="element-header">
-                                <span class="element-type">Type</span>
-                                <span class="element-length">Length (mm)</span>
-                                <span class="element-pos">Position (mm)</span>
-                                <span class="element-diameter">Dia. (mm)</span>
-                                <span class="element-actions">Actions</span>
-                            </div>
-                            <div id="elements-container">
-                                <!-- Elements will be added here dynamically -->
-                            </div>
-                            <button id="add-element" class="btn btn-secondary">Add Element</button>
-                        </div>
-                    </div>
-                    
-                    <div class="parameter-group">
-                        <h3>Boom Settings</h3>
-                        <div class="input-group">
-                            <label for="boom-diameter">Boom Diameter (mm):</label>
-                            <input type="number" id="boom-diameter" value="20" step="0.1" min="0">
-                        </div>
-                        <div class="input-group">
-                            <label for="boom-material">Boom Material:</label>
-                            <select id="boom-material">
-                                <option value="metal">Metal (Conductive)</option>
-                                <option value="nonmetal" selected>Non-Metal (Insulating)</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="parameter-group">
-                        <h3>Optimization</h3>
-                        <div class="input-group">
-                            <label for="optimization-goal">Optimization Goal:</label>
-                            <select id="optimization-goal">
-                                <option value="gain">Maximum Gain</option>
-                                <option value="fb">Maximum F/B Ratio</option>
-                                <option value="impedance">Best Impedance Match</option>
-                                <option value="combined" selected>Combined (Gain + F/B)</option>
-                            </select>
-                        </div>
-                        <button id="optimize-btn" class="btn btn-primary">Optimize Design</button>
-                    </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="visualization-panel">
-                    <div class="antenna-preview">
-                        <h3>Antenna Preview</h3>
-                        <div id="antenna-sketch" class="sketch-container">
-                            <!-- Antenna sketch will be rendered here -->
-                        </div>
-                    </div>
-                    
-                    <div class="quick-results">
-                        <h3>Performance Summary</h3>
-                        <div class="results-grid">
-                            <div class="result-item">
-                                <span class="result-label">Gain:</span>
-                                <span id="result-gain" class="result-value">-- dBi</span>
-                            </div>
-                            <div class="result-item">
-                                <span class="result-label">F/B Ratio:</span>
-                                <span id="result-fb" class="result-value">-- dB</span>
-                            </div>
-                            <div class="result-item">
-                                <span class="result-label">Impedance:</span>
-                                <span id="result-impedance" class="result-value">-- Ω</span>
-                            </div>
-                            <div class="result-item">
-                                <span class="result-label">VSWR:</span>
-                                <span id="result-vswr" class="result-value">--</span>
-                            </div>
-                            <div class="result-item">
-                                <span class="result-label">Beamwidth:</span>
-                                <span id="result-beamwidth" class="result-value">-- °</span>
-                            </div>
-                            <div class="result-item">
-                                <span class="result-label">Status:</span>
-                                <span id="status-message" class="status">Ready</span>
-                            </div>
-                        </div>
-                        <button id="run-analysis-btn" class="btn btn-primary">Run Analysis</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Performance Tab (Line Charts) -->
-        <section id="performance" class="tab-content">
-            <div class="performance-container">
-                <div class="chart-controls">
-                    <div class="input-group">
-                        <label for="frequency-start">Start Frequency (MHz):</label>
-                        <input type="number" id="frequency-start" value="140" step="0.1" min="1">
-                    </div>
-                    <div class="input-group">
-                        <label for="frequency-end">End Frequency (MHz):</label>
-                        <input type="number" id="frequency-end" value="148" step="0.1" min="1">
-                    </div>
-                    <div class="input-group">
-                        <label for="frequency-steps">Steps:</label>
-                        <input type="number" id="frequency-steps" value="21" min="5" max="101">
-                    </div>
-                    <button id="run-sweep-btn" class="btn btn-primary">Run Frequency Sweep</button>
-                </div>
-                
-                <div class="charts-grid">
-                    <div class="chart-container">
-                        <h3>Gain vs Frequency</h3>
-                        <canvas id="gain-chart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h3>F/B Ratio vs Frequency</h3>
-                        <canvas id="fb-chart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h3>Impedance vs Frequency</h3>
-                        <canvas id="impedance-chart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h3>VSWR vs Frequency</h3>
-                        <canvas id="vswr-chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Pattern Tab (Radiation Patterns) -->
-        <section id="pattern" class="tab-content">
-            <div class="pattern-container">
-                <div class="pattern-controls">
-                    <div class="input-group">
-                        <label for="pattern-frequency">Frequency (MHz):</label>
-                        <input type="number" id="pattern-frequency" value="144" step="0.1" min="1">
-                    </div>
-                    <div class="input-group">
-                        <label for="pattern-resolution">Resolution:</label>
-                        <select id="pattern-resolution">
-                            <option value="low">Low (5° steps)</option>
-                            <option value="medium" selected>Medium (2° steps)</option>
-                            <option value="high">High (1° steps)</option>
-                        </select>
-                    </div>
-                    <button id="calculate-pattern-btn" class="btn btn-primary">Calculate Pattern</button>
-                </div>
-                
-                <div class="patterns-grid">
-                    <div class="polar-chart-container">
-                        <h3>Azimuth Pattern (H-Plane)</h3>
-                        <div id="azimuth-pattern" class="polar-chart"></div>
-                    </div>
-                    <div class="polar-chart-container">
-                        <h3>Elevation Pattern (E-Plane)</h3>
-                        <div id="elevation-pattern" class="polar-chart"></div>
-                    </div>
-                    <div class="pattern-3d-container">
-                        <h3>3D Radiation Pattern</h3>
-                        <div id="pattern-3d" class="pattern-3d"></div>
-                        <div class="view-controls">
-                            <button id="reset-view-btn" class="btn btn-secondary">Reset View</button>
-                            <label for="pattern-colormap">Color Map:</label>
-                            <select id="pattern-colormap">
-                                <option value="rainbow" selected>Rainbow</option>
-                                <option value="heat">Heat</option>
-                                <option value="jet">Jet</option>
-                                <option value="grayscale">Grayscale</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- About Tab (Documentation) -->
-        <section id="about" class="tab-content">
-            <div class="about-container">
-                <div class="about-content">
-                    <h2>About OpenUda</h2>
-                    <p>OpenUda is an open-source web application for designing, analyzing, and optimizing Yagi-Uda antennas. It provides tools similar to desktop applications like YagiCAD, but runs entirely in your browser.</p>
-                    
-                    <h3>How It Works</h3>
-                    <p>OpenUda uses the Numerical Electromagnetics Code (NEC-2) implemented in WebAssembly to provide accurate antenna simulations. All calculations run locally in your browser, with no data sent to any server.</p>
-                    
-                    <h3>Key Features</h3>
-                    <ul>
-                        <li>Design Yagi-Uda antennas with custom elements and parameters</li>
-                        <li>Automatic optimization for gain, F/B ratio, or impedance</li>
-                        <li>Frequency sweep analysis to see performance across a bandwidth</li>
-                        <li>2D and 3D radiation pattern visualization</li>
-                        <li>Import/export compatibility with YagiCAD (.yc6) and NEC (.nec) formats</li>
-                        <li>Entirely client-side operation - works offline after initial load</li>
-                    </ul>
-                    
-                    <h3>Antenna Theory</h3>
-                    <p>A Yagi-Uda antenna consists of a driven element (usually a half-wave dipole), a reflector element behind it, and one or more director elements in front. This arrangement creates a directional radiation pattern with high gain in the forward direction.</p>
-                    
-                    <h4>Common Terms</h4>
-                    <dl>
-                        <dt>Gain</dt>
-                        <dd>A measure of how much the antenna increases signal strength in its preferred direction compared to an isotropic radiator (dBi).</dd>
-                        
-                        <dt>F/B Ratio</dt>
-                        <dd>Front-to-back ratio, measuring how much stronger the signal is in the forward direction compared to the backward direction.</dd>
-                        
-                        <dt>VSWR</dt>
-                        <dd>Voltage Standing Wave Ratio, indicating how well the antenna is matched to the transmission line. Lower values (closer to 1:1) are better.</dd>
-                        
-                        <dt>Beamwidth</dt>
-                        <dd>The angular width of the main lobe, usually measured at the half-power (-3dB) points.</dd>
-                    </dl>
-                    
-                    <h3>Project Information</h3>
-                    <p>OpenUda is open-source software licensed under the <a href="https://opensource.org/licenses/MPL-2.0">MPL-2.0 License</a>. It was created as an alternative to commercial antenna design software, with a focus on accessibility and modern web standards.</p>
-                    
-                    <h3>Acknowledgments</h3>
-                    <p>This project builds upon the work of many open-source projects and research in antenna theory, including:</p>
-                    <ul>
-                        <li><a href="https://github.com/KJ7LNW/nec2c">nec2c by Neoklis Kyriazis</a></li>
-                        <li><a href="https://github.com/chartjs/Chart.js">Chart.js for visualization</a></li>
-                        <li><a href="https://github.com/mrdoob/three.js">Three.js for 3D rendering</a></li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <div class="footer-container">
-            <p>&copy; 2025 OpenUda Project. All rights reserved.</p>
-            <p>Version 1.0.0</p>
-        </div>
-    </footer>
-
-    <!-- Modal dialogs -->
-    <div id="presets-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Load Preset Design</h2>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="presets-list">
-                    <h3>VHF Designs</h3>
-                    <ul>
-                        <li><a href="#" class="preset-link" data-preset="2m-3el">3-Element VHF (144 MHz)</a></li>
-                        <li><a href="#" class="preset-link" data-preset="2m-5el">5-Element VHF (144 MHz)</a></li>
-                        <li><a href="#" class="preset-link" data-preset="2m-7el">7-Element VHF (144 MHz)</a></li>
-                    </ul>
-                    
-                    <h3>UHF Designs</h3>
-                    <ul>
-                        <li><a href="#" class="preset-link" data-preset="70cm-5el">5-Element UHF (432 MHz)</a></li>
-                        <li><a href="#" class="preset-link" data-preset="70cm-10el">10-Element UHF (432 MHz)</a></li>
-                    </ul>
-                    
-                    <h3>HF Designs</h3>
-                    <ul>
-                        <li><a href="#" class="preset-link" data-preset="20m-3el">3-Element HF (14 MHz)</a></li>
-                        <li><a href="#" class="preset-link" data-preset="20m-5el">5-Element HF (14 MHz)</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="import-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Import Antenna Design</h2>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="import-options">
-                    <div class="import-option">
-                        <h3>Import from File</h3>
-                        <p>Supported formats: YagiCAD (.yc6), NEC (.nec), JSON (.json)</p>
-                        <input type="file" id="import-file" accept=".yc6,.nec,.json">
-                    </div>
-                    
-                    <div class="import-option">
-                        <h3>Import from Text</h3>
-                        <p>Paste YagiCAD, NEC, or JSON content:</p>
-                        <textarea id="import-text" rows="10" placeholder="Paste antenna design data here..."></textarea>
-                    </div>
-                    
-                    <button id="import-submit-btn" class="btn btn-primary">Import Design</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="export-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Export Antenna Design</h2>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="export-options">
-                    <div class="input-group">
-                        <label for="export-format">Export Format:</label>
-                        <select id="export-format">
-                            <option value="json" selected>OpenUda JSON (.json)</option>
-                            <option value="nec">NEC (.nec)</option>
-                            <option value="yc6">YagiCAD (.yc6)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="input-group">
-                        <label for="export-filename">Filename:</label>
-                        <input type="text" id="export-filename" value="my_antenna">
-                    </div>
-                    
-                    <div class="export-preview">
-                        <h3>Export Preview</h3>
-                        <textarea id="export-text" rows="10" readonly></textarea>
-                    </div>
-                    
-                    <div class="button-group">
-                        <button id="copy-export-btn" class="btn btn-secondary">Copy to Clipboard</button>
-                        <button id="download-export-btn" class="btn btn-primary">Download File</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Loading spinner for long operations -->
-    <div id="loading-overlay" class="hidden">
-        <div class="spinner"></div>
-        <div id="loading-message">Processing...</div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="js/lib/chart.min.js"></script>
-    <script type="module" src="js/lib/three.module.js"></script>
-    <script type="module" src="js/app.js"></script>
-</body>
-</html>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="OpenUda" />
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html> 
