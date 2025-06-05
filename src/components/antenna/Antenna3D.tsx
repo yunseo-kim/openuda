@@ -18,10 +18,11 @@ interface Antenna3DProps {
 interface AntennaElementProps {
   element: PresetElement
   index: number
+  boomCenter: number
 }
 
 // Individual antenna element component
-function AntennaElement({ element, index }: AntennaElementProps) {
+function AntennaElement({ element, index, boomCenter }: AntennaElementProps) {
   const meshRef = useRef<Mesh>(null)
   
   // Colors for different element types
@@ -42,7 +43,7 @@ function AntennaElement({ element, index }: AntennaElementProps) {
   const scaleToScene = (mm: number) => mm / 100
 
   return (
-    <group position={[scaleToScene(element.position), 0, 0]}>
+    <group position={[scaleToScene(element.position - boomCenter), 0, 0]}>
       {/* Element cylinder - now vertical (along Y axis) */}
       <mesh
         ref={meshRef}
@@ -82,9 +83,9 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
     // Rotate entire antenna assembly 90 degrees around X-axis (boom axis)
     // so elements are horizontal (parallel to ground)
     <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
-      {/* Boom - horizontal along X axis */}
+      {/* Boom - now centered at origin */}
       <mesh
-        position={[scaleToScene(boomCenter), 0, 0]}
+        position={[0, 0, 0]}
         rotation={[0, 0, Math.PI / 2]} // Rotate to make it horizontal
       >
         <cylinderGeometry 
@@ -102,12 +103,13 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
         />
       </mesh>
 
-      {/* Antenna elements - vertical, perpendicular to boom */}
+      {/* Antenna elements - positioned relative to boom center */}
       {elements.map((element, index) => (
         <AntennaElement 
           key={`${element.type}-${index}`} 
           element={element} 
-          index={index} 
+          index={index}
+          boomCenter={boomCenter}
         />
       ))}
       
@@ -115,7 +117,7 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
       {elements.map((element, index) => (
         <mesh
           key={`connector-${index}`}
-          position={[scaleToScene(element.position), 0, 0]}
+          position={[scaleToScene(element.position - boomCenter), 0, 0]}
         >
           <boxGeometry args={[scaleToScene(15), scaleToScene(15), scaleToScene(15)]} />
           <meshStandardMaterial 
@@ -132,6 +134,11 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
 export function Antenna3D({ elements, frequency, showGrid = true, showLabels = false }: Antenna3DProps) {
   // Calculate wavelength for reference
   const wavelength = 299792458 / (frequency * 1e6) * 1000 // in mm
+  
+  // Calculate boom dimensions for display
+  const minPos = Math.min(...elements.map(e => e.position))
+  const maxPos = Math.max(...elements.map(e => e.position))
+  const boomLength = maxPos - minPos
   
   return (
     <div className="w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-900 rounded-lg relative">
@@ -193,6 +200,7 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
           <div>Frequency: {frequency} MHz</div>
           <div>Wavelength: {(wavelength / 1000).toFixed(2)} m</div>
           <div>Elements: {elements.length}</div>
+          <div>Boom length: {(boomLength / 1000).toFixed(2)} m</div>
         </div>
       </div>
       
