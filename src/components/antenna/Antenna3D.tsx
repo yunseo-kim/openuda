@@ -43,10 +43,10 @@ function AntennaElement({ element, index }: AntennaElementProps) {
 
   return (
     <group position={[scaleToScene(element.position), 0, 0]}>
-      {/* Element cylinder */}
+      {/* Element cylinder - now vertical (along Y axis) */}
       <mesh
         ref={meshRef}
-        rotation={[0, 0, Math.PI / 2]}
+        rotation={[0, 0, 0]} // No rotation needed, cylinder is vertical by default
       >
         <cylinderGeometry 
           args={[
@@ -80,10 +80,10 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
 
   return (
     <group ref={groupRef}>
-      {/* Boom */}
+      {/* Boom - horizontal along X axis */}
       <mesh
         position={[scaleToScene(boomCenter), 0, 0]}
-        rotation={[0, 0, Math.PI / 2]}
+        rotation={[0, 0, Math.PI / 2]} // Rotate to make it horizontal
       >
         <cylinderGeometry 
           args={[
@@ -100,13 +100,28 @@ function AntennaAssembly({ elements }: { elements: PresetElement[] }) {
         />
       </mesh>
 
-      {/* Antenna elements */}
+      {/* Antenna elements - vertical, perpendicular to boom */}
       {elements.map((element, index) => (
         <AntennaElement 
           key={`${element.type}-${index}`} 
           element={element} 
           index={index} 
         />
+      ))}
+      
+      {/* Optional: Add small connectors where elements meet the boom */}
+      {elements.map((element, index) => (
+        <mesh
+          key={`connector-${index}`}
+          position={[scaleToScene(element.position), 0, 0]}
+        >
+          <boxGeometry args={[scaleToScene(15), scaleToScene(15), scaleToScene(15)]} />
+          <meshStandardMaterial 
+            color="#2c3e50" 
+            metalness={0.3}
+            roughness={0.5}
+          />
+        </mesh>
       ))}
     </group>
   )
@@ -117,11 +132,11 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
   const wavelength = 299792458 / (frequency * 1e6) * 1000 // in mm
   
   return (
-    <div className="w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-900 rounded-lg">
+    <div className="w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-900 rounded-lg relative">
       <Canvas shadows>
         <PerspectiveCamera 
           makeDefault 
-          position={[10, 5, 10]} 
+          position={[8, 6, 8]} 
           fov={50}
         />
         
@@ -195,6 +210,15 @@ export function Antenna3D({ elements, frequency, showGrid = true, showLabels = f
             <div className="w-3 h-3 rounded-full bg-[#45b7d1]"></div>
             <span className="text-gray-600 dark:text-gray-300">Director</span>
           </div>
+        </div>
+      </div>
+      
+      {/* Axis indicator */}
+      <div className="absolute top-4 right-4 bg-white/80 dark:bg-gray-800/80 p-3 rounded-lg text-xs">
+        <div className="font-semibold mb-1">View</div>
+        <div className="text-gray-600 dark:text-gray-300 space-y-0.5">
+          <div>Boom: X-axis (horizontal)</div>
+          <div>Elements: Y-axis (vertical)</div>
         </div>
       </div>
     </div>
