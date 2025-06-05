@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar styles */
+@layer utilities {
+  /* Webkit browsers */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 dark:bg-gray-600 rounded-full hover:bg-gray-500 dark:hover:bg-gray-500;
+  }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.400') theme('colors.gray.100');
+  }
+
+  .dark .custom-scrollbar {
+    scrollbar-color: theme('colors.gray.600') theme('colors.gray.800');
+  }
+}
+
+/* Loading animation */
+@layer components {
+  .loading-dots {
+    @apply inline-flex items-center;
+  }
+
+  .loading-dots::after {
+    content: '...';
+    @apply inline-block w-0 overflow-hidden animate-[ellipsis_1.5s_steps(4)_infinite];
+  }
+
+  @keyframes ellipsis {
+    to {
+      width: 1.25em;
+    }
+  }
+}
+
+/* Smooth transitions for theme switching */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Prevent layout shift on scrollbar */
+html {
+  overflow-y: scroll;
+}
+
+/* Better focus styles */
+:focus-visible {
+  @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-background;
+}
+
+/* Responsive typography */
+@layer base {
+  html {
+    @apply text-[14px] sm:text-[15px] lg:text-[16px];
+  }
+  
+  h1 {
+    @apply text-3xl sm:text-4xl lg:text-5xl font-bold;
+  }
+  
+  h2 {
+    @apply text-2xl sm:text-3xl lg:text-4xl font-semibold;
+  }
+  
+  h3 {
+    @apply text-xl sm:text-2xl lg:text-3xl font-semibold;
+  }
+  
+  h4 {
+    @apply text-lg sm:text-xl lg:text-2xl font-medium;
+  }
+} 

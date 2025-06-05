@@ -1,0 +1,231 @@
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
+import LanguageDetector from 'i18next-browser-languagedetector'
+
+// 번역 리소스
+const resources = {
+  ko: {
+    translation: {
+      // 공통
+      common: {
+        loading: '로딩 중...',
+        error: '오류',
+        success: '성공',
+        cancel: '취소',
+        confirm: '확인',
+        save: '저장',
+        delete: '삭제',
+        edit: '편집',
+        add: '추가',
+        close: '닫기',
+        back: '뒤로',
+        next: '다음',
+        previous: '이전',
+        search: '검색',
+        filter: '필터',
+        reset: '초기화',
+        export: '내보내기',
+        import: '가져오기',
+        download: '다운로드',
+        upload: '업로드',
+      },
+      // 네비게이션
+      nav: {
+        design: '설계',
+        performance: '성능',
+        pattern: '패턴',
+        about: '정보',
+      },
+      // 메인 탭
+      design: {
+        title: '안테나 설계',
+        frequency: '주파수 설정',
+        centerFrequency: '중심 주파수 (MHz)',
+        fileOperations: '파일 작업',
+        loadPreset: '프리셋 불러오기',
+        elementSettings: '요소 설정',
+        type: '유형',
+        length: '길이 (mm)',
+        position: '위치 (mm)',
+        diameter: '직경 (mm)',
+        actions: '작업',
+        addElement: '요소 추가',
+        boomSettings: '붐 설정',
+        boomDiameter: '붐 직경 (mm)',
+        boomMaterial: '붐 재질',
+        metal: '금속 (전도성)',
+        nonMetal: '비금속 (절연성)',
+        optimization: '최적화',
+        optimizationGoal: '최적화 목표',
+        maxGain: '최대 이득',
+        maxFB: '최대 F/B 비율',
+        bestImpedance: '최적 임피던스 매칭',
+        combined: '복합 (이득 + F/B)',
+        optimizeDesign: '설계 최적화',
+        antennaPreview: '안테나 미리보기',
+        performanceSummary: '성능 요약',
+        gain: '이득',
+        fbRatio: 'F/B 비율',
+        impedance: '임피던스',
+        vswr: 'VSWR',
+        beamwidth: '빔폭',
+        status: '상태',
+        ready: '준비',
+        runAnalysis: '분석 실행',
+      },
+      // 성능 탭
+      performance: {
+        title: '주파수별 성능',
+        startFrequency: '시작 주파수 (MHz)',
+        endFrequency: '종료 주파수 (MHz)',
+        steps: '단계',
+        runFrequencySweep: '주파수 스윕 실행',
+        gainVsFrequency: '주파수별 이득',
+        fbVsFrequency: '주파수별 F/B 비율',
+        impedanceVsFrequency: '주파수별 임피던스',
+        vswrVsFrequency: '주파수별 VSWR',
+      },
+      // 패턴 탭
+      pattern: {
+        title: '방사 패턴',
+        calculatePattern: '패턴 계산',
+        verticalPattern: '수직 패턴',
+        horizontalPattern: '수평 패턴',
+        pattern3D: '3D 패턴',
+        elevation: '앙각',
+        azimuth: '방위각',
+      },
+      // 정보 탭
+      about: {
+        title: 'OpenUda 정보',
+        description: '야기-우다 안테나 설계 웹 애플리케이션',
+        version: '버전',
+        license: '라이선스',
+        sourceCode: '소스 코드',
+        documentation: '문서',
+        contact: '연락처',
+      },
+    },
+  },
+  en: {
+    translation: {
+      // Common
+      common: {
+        loading: 'Loading...',
+        error: 'Error',
+        success: 'Success',
+        cancel: 'Cancel',
+        confirm: 'Confirm',
+        save: 'Save',
+        delete: 'Delete',
+        edit: 'Edit',
+        add: 'Add',
+        close: 'Close',
+        back: 'Back',
+        next: 'Next',
+        previous: 'Previous',
+        search: 'Search',
+        filter: 'Filter',
+        reset: 'Reset',
+        export: 'Export',
+        import: 'Import',
+        download: 'Download',
+        upload: 'Upload',
+      },
+      // Navigation
+      nav: {
+        design: 'Design',
+        performance: 'Performance',
+        pattern: 'Pattern',
+        about: 'About',
+      },
+      // Design Tab
+      design: {
+        title: 'Antenna Design',
+        frequency: 'Frequency Settings',
+        centerFrequency: 'Center Frequency (MHz)',
+        fileOperations: 'File Operations',
+        loadPreset: 'Load Preset',
+        elementSettings: 'Element Settings',
+        type: 'Type',
+        length: 'Length (mm)',
+        position: 'Position (mm)',
+        diameter: 'Diameter (mm)',
+        actions: 'Actions',
+        addElement: 'Add Element',
+        boomSettings: 'Boom Settings',
+        boomDiameter: 'Boom Diameter (mm)',
+        boomMaterial: 'Boom Material',
+        metal: 'Metal (Conductive)',
+        nonMetal: 'Non-Metal (Insulating)',
+        optimization: 'Optimization',
+        optimizationGoal: 'Optimization Goal',
+        maxGain: 'Maximum Gain',
+        maxFB: 'Maximum F/B Ratio',
+        bestImpedance: 'Best Impedance Match',
+        combined: 'Combined (Gain + F/B)',
+        optimizeDesign: 'Optimize Design',
+        antennaPreview: 'Antenna Preview',
+        performanceSummary: 'Performance Summary',
+        gain: 'Gain',
+        fbRatio: 'F/B Ratio',
+        impedance: 'Impedance',
+        vswr: 'VSWR',
+        beamwidth: 'Beamwidth',
+        status: 'Status',
+        ready: 'Ready',
+        runAnalysis: 'Run Analysis',
+      },
+      // Performance Tab
+      performance: {
+        title: 'Performance vs Frequency',
+        startFrequency: 'Start Frequency (MHz)',
+        endFrequency: 'End Frequency (MHz)',
+        steps: 'Steps',
+        runFrequencySweep: 'Run Frequency Sweep',
+        gainVsFrequency: 'Gain vs Frequency',
+        fbVsFrequency: 'F/B Ratio vs Frequency',
+        impedanceVsFrequency: 'Impedance vs Frequency',
+        vswrVsFrequency: 'VSWR vs Frequency',
+      },
+      // Pattern Tab
+      pattern: {
+        title: 'Radiation Pattern',
+        calculatePattern: 'Calculate Pattern',
+        verticalPattern: 'Vertical Pattern',
+        horizontalPattern: 'Horizontal Pattern',
+        pattern3D: '3D Pattern',
+        elevation: 'Elevation',
+        azimuth: 'Azimuth',
+      },
+      // About Tab
+      about: {
+        title: 'About OpenUda',
+        description: 'Yagi-Uda Antenna Design Web Application',
+        version: 'Version',
+        license: 'License',
+        sourceCode: 'Source Code',
+        documentation: 'Documentation',
+        contact: 'Contact',
+      },
+    },
+  },
+}
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources,
+    fallbackLng: 'ko',
+    debug: false,
+    interpolation: {
+      escapeValue: false,
+    },
+    detection: {
+      order: ['localStorage', 'navigator', 'htmlTag'],
+      caches: ['localStorage'],
+    },
+  })
+
+export default i18n 
