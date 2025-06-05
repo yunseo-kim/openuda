@@ -1,0 +1,285 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Git Commit Message Guidelines
+
+## Overview
+This document provides comprehensive guidelines for writing clear, consistent, and meaningful commit messages that enhance project maintainability and team collaboration.
+
+## Basic Structure (Conventional Commits)
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Components
+- **type**: Category of change (required)
+- **scope**: Area of codebase affected (optional)
+- **subject**: Brief description (required)
+- **body**: Detailed explanation (optional)
+- **footer**: References and breaking changes (optional)
+
+## Commit Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `feat` | New feature | `feat: add user authentication system` |
+| `fix` | Bug fix | `fix: resolve memory leak in data processing` |
+| `docs` | Documentation changes | `docs: update API documentation for v2.0` |
+| `style` | Code formatting (no logic change) | `style: fix indentation in user service` |
+| `refactor` | Code restructuring (no feature change) | `refactor: extract validation logic into utils` |
+| `test` | Adding or modifying tests | `test: add unit tests for antenna calculation` |
+| `chore` | Build scripts, package manager, etc. | `chore: update dependencies to latest versions` |
+| `perf` | Performance improvements | `perf: optimize WebAssembly module loading` |
+| `ci` | CI/CD configuration changes | `ci: add automated testing workflow` |
+| `build` | Build system changes | `build: configure Vite for production optimization` |
+| `revert` | Revert previous commit | `revert: undo changes from commit abc123` |
+
+## Subject Line Rules
+
+### ✅ DO
+- Keep under **50 characters**
+- Use **imperative mood** (add, fix, update, not added, fixed, updated)
+- Start with **lowercase** after type
+- Be **specific and descriptive**
+- **No period** at the end
+
+### ❌ DON'T
+- Use vague terms like "update stuff", "fix bug", "changes"
+- Write in past tense
+- Exceed 50 characters
+- End with punctuation
+
+### Examples
+
+#### ✅ Good Examples
+```bash
+feat: add WebAssembly-based antenna simulation
+fix: resolve null pointer exception in user service
+docs: add installation guide to README
+refactor: extract NEC2C parsing logic into separate module
+test: add integration tests for antenna optimization
+```
+
+#### ❌ Bad Examples
+```bash
+Update stuff
+Fixed bug
+Added new feature
+WIP
+Changed some files
+Bug fixes and improvements
+```
+
+## Scope Guidelines
+
+Use scope to indicate the area of codebase affected:
+
+```bash
+feat(api): add user authentication endpoint
+fix(ui): resolve button alignment in mobile view
+test(core): add unit tests for calculation engine
+docs(readme): update installation instructions
+feat(engine): implement nec2c WebAssembly integration
+fix(charts): resolve data visualization rendering issue
+```
+
+### Common Scopes for This Project
+- `engine`: NEC2C simulation engine
+- `ui`: User interface components
+- `api`: API endpoints and services
+- `charts`: Data visualization
+- `core`: Core application logic
+- `test`: Testing infrastructure
+- `docs`: Documentation
+- `build`: Build and deployment
+
+## Body Guidelines
+
+### When to Include a Body
+- Complex changes requiring explanation
+- Breaking changes
+- Performance implications
+- Security considerations
+- Migration steps needed
+
+### Body Format
+- Wrap at **72 characters** per line
+- Explain **what** and **why**, not how
+- Use present tense
+- Separate paragraphs with blank lines
+
+### Example with Body
+```bash
+feat(engine): implement WebAssembly-based antenna simulation
+
+- Compile nec2c C source to WebAssembly using Emscripten
+- Create TypeScript wrapper (NEC2Engine) for browser integration
+- Add antenna parameter interfaces and simulation result types
+- Enable real-time electromagnetic simulation with fallback support
+
+This replaces server-side calculations with client-side processing,
+reducing latency from 2-3 seconds to under 500ms and enabling 
+offline functionality for users.
+
+The implementation supports both multithreaded (SharedArrayBuffer)
+and single-threaded execution for maximum browser compatibility.
+```
+
+## Footer Guidelines
+
+### Breaking Changes
+```bash
+feat: redesign user authentication system
+
+BREAKING CHANGE: `authenticate()` function now returns Promise<User>
+instead of User object. Update all authentication calls to use await.
+```
+
+### Issue References
+```bash
+fix: resolve memory leak in antenna calculation
+
+Closes #123
+Fixes #456
+Related to #789
+```
+
+### Co-authorship
+```bash
+feat: add advanced optimization algorithms
+
+Co-authored-by: Jane Smith <jane@example.com>
+Co-authored-by: John Doe <john@example.com>
+```
+
+## Atomic Commits
+
+### Principles
+- **One logical change** per commit
+- **Self-contained** - each commit should be independently functional
+- **Reversible** - easy to revert without side effects
+- **Testable** - changes should pass all tests
+
+### ✅ Good Atomic Commits
+```bash
+feat: add user model with validation
+feat: add user controller with CRUD operations
+feat: add user routes and middleware
+test: add comprehensive user authentication tests
+```
+
+### ❌ Bad Non-Atomic Commit
+```bash
+feat: add complete user system with authentication, validation, 
+routing, tests, documentation, and bug fixes
+```
+
+## Team Collaboration Guidelines
+
+### Consistency Rules
+1. **Agree on conventions** before starting development
+2. **Use automation tools** (commitizen, commitlint)
+3. **Regular reviews** of commit history quality
+4. **Document project-specific** conventions
+
+### Automation Setup
+
+#### Commitizen
+```bash
+npm install -g commitizen
+npm install -g cz-conventional-changelog
+echo '{ "path": "cz-conventional-changelog" }' > ~/.czrc
+git cz  # Use instead of git commit
+```
+
+#### Commitlint
+```bash
+npm install --save-dev @commitlint/cli @commitlint/config-conventional
+echo "module.exports = {extends: ['@commitlint/config-conventional']}" > commitlint.config.js
+```
+
+## Language Considerations
+
+### For International Projects
+- **Use English** for commit messages
+- Keep technical terms in English
+- Use clear, simple language
+
+### For Korean Projects
+- Use Korean if team prefers
+- Maintain consistency within the project
+- Consider future international contributors
+
+## Project-Specific Examples
+
+### OpenUda Antenna Design Tool
+```bash
+# Feature development
+feat(engine): add Yagi-Uda antenna optimization algorithm
+feat(ui): implement interactive 3D antenna visualization
+feat(charts): add frequency response plotting with Chart.js
+
+# Bug fixes
+fix(engine): resolve precision issues in gain calculations
+fix(ui): correct mobile responsiveness in design panel
+fix(charts): fix axis scaling in radiation pattern display
+
+# Documentation
+docs(api): add WebAssembly integration examples
+docs(readme): update build instructions for M1 Macs
+docs(contributing): add commit message guidelines
+
+# Testing
+test(engine): add integration tests for NEC2C wrapper
+test(ui): add E2E tests for antenna design workflow
+test(charts): add visual regression tests for plot rendering
+
+# Performance
+perf(engine): optimize WebAssembly module loading
+perf(ui): implement lazy loading for 3D components
+perf(charts): reduce memory usage in large datasets
+```
+
+## Quality Checklist
+
+Before committing, verify:
+
+- [ ] **Type** is appropriate and specific
+- [ ] **Subject** is under 50 characters
+- [ ] **Imperative mood** is used (add, not added)
+- [ ] **Description** is clear and specific
+- [ ] **Scope** is included when helpful
+- [ ] **Body** explains why (for complex changes)
+- [ ] **Breaking changes** are documented
+- [ ] **Issue references** are included
+- [ ] **Tests** pass for the changes
+- [ ] **Code** is properly formatted
+
+## Common Mistakes to Avoid
+
+1. **Vague messages**: "fix stuff", "update code"
+2. **Multiple changes**: Mixing features and fixes
+3. **Wrong tense**: "added" instead of "add"
+4. **Too long**: Subject lines over 50 characters
+5. **Missing context**: No explanation for complex changes
+6. **Inconsistent style**: Mixing conventions
+7. **Debugging commits**: "console.log", "tmp fix"
+
+## Resources
+
+- [Conventional Commits](mdc:https:/www.conventionalcommits.org)
+- [Angular Commit Guidelines](mdc:https:/github.com/angular/angular/blob/main/CONTRIBUTING.md#commit)
+- [How to Write a Git Commit Message](mdc:https:/chris.beams.io/posts/git-commit)
+- [Commitizen](mdc:https:/github.com/commitizen/cz-cli)
+- [Commitlint](mdc:https:/commitlint.js.org)
+
+---
+
+*Remember: Good commit messages are a gift to your future self and your teammates. They make code archaeology much easier and help maintain project quality over time.* 

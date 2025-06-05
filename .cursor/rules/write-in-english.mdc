@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Unless I explicitly instruct to add multilingual support, please implement the Readme and app default language in English.

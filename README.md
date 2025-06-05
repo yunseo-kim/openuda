@@ -1,4 +1,5 @@
 # OpenUda
+
 OpenUda: Yagi-Uda Antenna Design, Analysis, and Optimization Web App
 
 [![OpenUda Tests](https://github.com/yunseo-kim/openuda/actions/workflows/test-and-deploy.yml/badge.svg)](https://github.com/yunseo-kim/openuda/actions/workflows/test-and-deploy.yml)
@@ -39,17 +40,20 @@ OpenUda is a modern web application that enables users to design, analyze, and o
 ### Development Setup
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yunseo-kim/openuda.git
 cd openuda
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -67,16 +71,19 @@ The built files will be in the `dist` directory.
 ## 🧪 Testing
 
 Run tests:
+
 ```bash
 npm test
 ```
 
 Run tests with UI:
+
 ```bash
 npm run test:ui
 ```
 
 Run tests with coverage:
+
 ```bash
 npm run test:coverage
 ```
@@ -88,18 +95,38 @@ npm run test:coverage
 This project uses ESLint and Prettier for code formatting. Pre-commit hooks are set up with Husky to ensure code quality.
 
 Format code:
+
 ```bash
 npm run format
 ```
 
 Lint code:
+
 ```bash
 npm run lint
 ```
 
 Type check:
+
 ```bash
 npm run typecheck
+```
+
+### Commit Message Guidelines
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/) specification. For detailed guidelines, see:
+
+- [📋 Quick Commit Checklist](.cursor/rules/commit-checklist.md) - Essential checks before committing
+- [📝 Complete Commit Guidelines](.cursor/rules/commit-message-guidelines.md) - Comprehensive guide
+- [🎯 OpenUda-Specific Conventions](.cursor/rules/openuda-commit-conventions.md) - Project-specific rules
+
+**Quick Reference:**
+
+```bash
+feat(engine): add antenna optimization algorithm
+fix(ui): resolve mobile layout issue
+docs: update installation guide
+test(core): add simulation accuracy tests
 ```
 
 ### Project Structure
@@ -185,11 +212,13 @@ To ensure code quality for the Yagi-Uda Antenna Optimization System (OpenUda), w
 The testing system focuses on validating critical components of the application:
 
 1. **Calculator Module**: Tests that verify the accuracy of antenna performance calculations, including:
+
    - Radiation pattern generation
    - VSWR (Voltage Standing Wave Ratio) calculations
    - Impedance analysis
 
 2. **Optimizer Module**: Tests that validate the genetic algorithm implementation for antenna optimization, ensuring correct handling of parameters such as:
+
    - Population size: 30
    - Maximum generations: 20
    - Mutation rate: 0.15
@@ -210,6 +239,7 @@ The CI/CD pipeline automatically:
 4. Deploys to GitHub Pages automatically when tests pass successfully
 
 This ensures that:
+
 - Test code is included in the repository but excluded from production builds
 - All changes are validated before deployment
 - Code quality is maintained through a continuous integration process

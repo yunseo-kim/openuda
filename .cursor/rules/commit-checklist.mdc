@@ -1,0 +1,72 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Quick Commit Checklist
+
+## Before You Commit
+
+### 🔍 Pre-Commit Checks
+- [ ] Code compiles without errors
+- [ ] All tests pass
+- [ ] Code is properly formatted
+- [ ] No debugging code left behind
+- [ ] Only related changes are included
+
+### 📝 Message Quality Check
+- [ ] **Type** is correct (`feat`, `fix`, `docs`, etc.)
+- [ ] **Subject** is under 50 characters
+- [ ] **Imperative mood** ("add" not "added")
+- [ ] **Specific and clear** description
+- [ ] **Scope** included when helpful
+- [ ] **No period** at end of subject
+
+### 💡 Quick Reference
+
+#### Common Types
+```
+feat:     New feature
+fix:      Bug fix
+docs:     Documentation
+test:     Tests
+refactor: Code restructuring
+style:    Formatting
+chore:    Build/tools
+perf:     Performance
+ci:       CI/CD
+```
+
+#### Format Template
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+#### Examples
+```bash
+feat(engine): add antenna optimization algorithm
+fix(ui): resolve mobile layout issue
+docs: update installation guide
+test(core): add simulation accuracy tests
+```
+
+### ⚠️ Red Flags
+- Subject over 50 characters
+- Vague words: "stuff", "things", "misc"
+- Past tense: "added", "fixed"
+- Multiple unrelated changes
+- WIP or temporary commits
+
+### ✅ Good Practices
+- One logical change per commit
+- Clear "why" in body for complex changes
+- Reference issues when relevant
+- Use consistent style across team
+- Think about future code reviewers
+
+---
+*Keep this handy while committing! 🚀* 

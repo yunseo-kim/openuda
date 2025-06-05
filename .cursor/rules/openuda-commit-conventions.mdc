@@ -1,0 +1,244 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# OpenUda Project Commit Conventions
+
+## Project-Specific Guidelines
+
+This document outlines commit message conventions specific to the OpenUda Yagi-Uda antenna design tool project.
+
+## Custom Scopes for OpenUda
+
+### Core Areas
+- `engine`: NEC2C simulation engine and WebAssembly integration
+- `ui`: User interface components and layouts
+- `charts`: Data visualization and plotting (Chart.js, Plotly)
+- `three`: 3D visualization components (Three.js, React Three Fiber)
+- `optimization`: Antenna optimization algorithms
+- `file`: File I/O operations (.yc6, .nec, .json formats)
+- `i18n`: Internationalization (Korean/English)
+- `pwa`: Progressive Web App features
+
+### Technical Areas
+- `build`: Vite build configuration and WASM compilation
+- `deps`: Dependency updates and package management
+- `types`: TypeScript type definitions
+- `test`: Testing setup and test cases
+- `ci`: GitHub Actions and deployment
+- `docs`: Documentation and README
+
+## Common Commit Patterns
+
+### Engine Development
+```bash
+feat(engine): implement Yagi-Uda antenna parameter validation
+feat(engine): add support for real ground simulation
+fix(engine): resolve precision issues in gain calculations
+perf(engine): optimize WebAssembly module loading time
+test(engine): add integration tests for NEC2C wrapper
+```
+
+### UI Components
+```bash
+feat(ui): add interactive antenna element editor
+feat(ui): implement responsive design for mobile devices
+fix(ui): resolve layout issues in parameter input panel
+style(ui): update component styling with Tailwind CSS
+feat(ui): add drag-and-drop file upload interface
+```
+
+### 3D Visualization
+```bash
+feat(three): implement 3D antenna geometry visualization
+feat(three): add interactive radiation pattern display
+fix(three): resolve performance issues with large datasets
+feat(three): add animation for optimization progress
+```
+
+### Charts and Analysis
+```bash
+feat(charts): add frequency response plotting
+feat(charts): implement 2D radiation pattern charts
+fix(charts): resolve axis scaling in gain vs frequency plot
+feat(charts): add exportable chart data functionality
+```
+
+### Optimization Features
+```bash
+feat(optimization): implement genetic algorithm for element spacing
+feat(optimization): add multi-objective optimization support
+fix(optimization): resolve convergence issues in PSO algorithm
+perf(optimization): improve optimization speed by 40%
+```
+
+### File Format Support
+```bash
+feat(file): add YagiCAD .yc6 file import support
+feat(file): implement NEC .nec file export functionality
+fix(file): resolve parsing errors in legacy file formats
+feat(file): add JSON schema validation for antenna data
+```
+
+### Internationalization
+```bash
+feat(i18n): add Korean language support
+docs(i18n): translate user interface to Korean
+fix(i18n): resolve text overflow in translated components
+feat(i18n): implement dynamic language switching
+```
+
+### PWA Features
+```bash
+feat(pwa): add offline simulation capability
+feat(pwa): implement service worker for caching
+fix(pwa): resolve manifest validation issues
+feat(pwa): add install prompt for mobile users
+```
+
+## Task Reference Format
+
+Include task references when implementing specific requirements:
+
+```bash
+feat(engine): implement nec2c WebAssembly integration
+
+- Compile nec2c C source to WebAssembly using Emscripten
+- Create TypeScript wrapper for seamless browser integration
+- Add support for both single and multi-threaded execution
+
+Implements T-002
+```
+
+## Breaking Changes
+
+When introducing breaking changes, always document them:
+
+```bash
+feat(engine): redesign antenna parameter interface
+
+BREAKING CHANGE: AntennaParams interface now requires explicit
+element types. Update all antenna definitions to include
+type: 'reflector' | 'driven' | 'director' for each element.
+
+Migration guide:
+- Old: { position: 0, length: 1.0 }
+- New: { type: 'driven', position: 0, length: 1.0 }
+```
+
+## Performance Commits
+
+For performance-related changes, include metrics:
+
+```bash
+perf(engine): optimize WebAssembly module initialization
+
+- Reduce initial loading time from 2.3s to 0.8s
+- Implement progressive loading for large antenna models
+- Add memory pooling for frequent calculations
+
+Benchmarks show 65% improvement in cold start performance
+on average mobile devices.
+```
+
+## Documentation Priorities
+
+Focus on user-facing and developer-facing documentation:
+
+```bash
+docs(api): add WebAssembly integration examples
+docs(user): create antenna design tutorial
+docs(dev): document build process for contributors
+docs(readme): update installation guide for M1 Macs
+```
+
+## Testing Strategy
+
+Emphasize testing for critical components:
+
+```bash
+test(engine): add comprehensive NEC2C simulation tests
+test(ui): implement E2E tests for antenna design workflow
+test(charts): add visual regression tests for plot rendering
+test(optimization): verify algorithm convergence accuracy
+```
+
+## Release Preparation
+
+For release-related commits:
+
+```bash
+chore: prepare for v1.0.0 release
+chore(deps): update all dependencies to latest stable
+build: optimize production bundle size
+ci: add release automation workflow
+```
+
+## Examples from Real Development
+
+### Feature Development Sequence
+```bash
+feat(engine): add basic NEC2C WebAssembly wrapper
+test(engine): add unit tests for engine integration
+feat(ui): create engine test component
+docs(engine): document WebAssembly integration API
+```
+
+### Bug Fix Sequence
+```bash
+fix(charts): resolve memory leak in pattern visualization
+test(charts): add regression test for memory usage
+docs(charts): update troubleshooting guide
+```
+
+### Refactoring Sequence
+```bash
+refactor(ui): extract common component patterns
+test(ui): update tests for refactored components
+docs(ui): update component documentation
+```
+
+## Commit Message Templates
+
+### Feature Template
+```bash
+feat(<scope>): <description>
+
+- <implementation detail 1>
+- <implementation detail 2>
+- <implementation detail 3>
+
+<explanation of why this feature is needed>
+
+[Implements T-XXX]
+```
+
+### Bug Fix Template
+```bash
+fix(<scope>): <description>
+
+<explanation of the problem and solution>
+
+<steps to reproduce (if complex)>
+
+[Fixes #XXX]
+```
+
+### Performance Template
+```bash
+perf(<scope>): <description>
+
+- <optimization 1>
+- <optimization 2>
+
+Before: <metric>
+After: <metric>
+Improvement: <percentage>
+
+[Related to #XXX]
+```
+
+---
+
+*These conventions help maintain consistency and clarity in the OpenUda project development process.* 
