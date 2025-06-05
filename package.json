@@ -19,8 +19,8 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@nextui-org/react": "^2.2.10",
-    "@react-three/drei": "^9.88.13",
-    "@react-three/fiber": "^8.15.11",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "chart.js": "^4.4.0",
     "chartjs-adapter-date-fns": "^3.0.0",
     "framer-motion": "^11.5.6",
