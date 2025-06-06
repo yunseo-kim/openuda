@@ -146,14 +146,13 @@ function parseYagiCADFile(content: string): FileParseResult {
         // YagiCAD format: length, position, diameter, 0, 0, segments, type_flag, 0, 0
         const [length, position, diameter, , , segments, typeFlag] = values
 
-        // Determine element type based on type flag and position
+        // Initially determine element type based on type flag
+        // In YagiCAD, typeFlag=1 appears to indicate the driven element
         let type: 'reflector' | 'driven' | 'director'
         if (typeFlag === 1) {
-          type = 'reflector'
-        } else if (position === 0) {
-          type = 'driven'
+          type = 'driven' // YagiCAD typeFlag=1 indicates driven element
         } else {
-          type = 'director'
+          type = 'director' // Temporary assignment, will be corrected later based on position
         }
 
         // Values are in meters in YagiCAD files, convert to mm for UI
@@ -215,9 +214,25 @@ function parseYagiCADFile(content: string): FileParseResult {
     // Sort elements by position
     elements.sort((a, b) => a.position - b.position)
 
-    // Ensure we have at least one driven element
-    if (!elements.some(e => e.type === 'driven')) {
-      // Find element at position 0 or closest to 0
+    // Find driven element and adjust other element types based on position
+    const drivenElement = elements.find(e => e.type === 'driven')
+
+    if (drivenElement) {
+      // If we found a driven element (type_flag=1), use its position as reference
+      const drivenPosition = drivenElement.position
+
+      // Set reflector and director based on position relative to driven element
+      for (const element of elements) {
+        if (element.type === 'driven') continue // Skip driven element
+
+        if (element.position < drivenPosition) {
+          element.type = 'reflector' // Behind driven element (smaller position)
+        } else {
+          element.type = 'director' // In front of driven element (larger position)
+        }
+      }
+    } else {
+      // Fallback: If no type_flag=1 found, find element closest to position 0
       let drivenIndex = 0
       let minDistance = Math.abs(elements[0].position)
 
@@ -229,7 +244,20 @@ function parseYagiCADFile(content: string): FileParseResult {
         }
       }
 
+      // Set driven element
       elements[drivenIndex].type = 'driven'
+      const drivenPosition = elements[drivenIndex].position
+
+      // Set reflector and director based on position relative to driven element
+      for (let i = 0; i < elements.length; i++) {
+        if (i === drivenIndex) continue // Skip driven element
+
+        if (elements[i].position < drivenPosition) {
+          elements[i].type = 'reflector' // Behind driven element
+        } else {
+          elements[i].type = 'director' // In front of driven element
+        }
+      }
     }
 
     const antennaParams: AntennaParams = {
