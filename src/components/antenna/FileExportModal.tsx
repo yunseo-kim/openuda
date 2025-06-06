@@ -15,6 +15,7 @@ import {
   Switch,
   Chip,
   type Selection,
+  type SelectedItemProps,
 } from '@heroui/react'
 import {
   ArrowDownTrayIcon,
@@ -174,9 +175,9 @@ export function FileExportModal({
                     const selectedFormat = Array.from(keys as Set<string>)[0] as SupportedFileFormat
                     setFormat(selectedFormat)
                   }}
-                  renderValue={(items: Set<React.Key>) => {
-                    if (items.size === 0) return 'Select a file format...'
-                    const selectedFormat = Array.from(items)[0] as SupportedFileFormat
+                  renderValue={(items: SelectedItemProps<object>[]) => {
+                    if (items.length === 0) return 'Select a file format...'
+                    const selectedFormat = items[0].key as SupportedFileFormat
                     const formatInfo = FILE_FORMATS[selectedFormat]
                     return `${formatInfo.name} (${formatInfo.extension}) - ${formatInfo.description}`
                   }}
