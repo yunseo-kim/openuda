@@ -32,9 +32,9 @@ export interface AntennaParams {
 
 export interface AntennaElement {
   type: 'reflector' | 'driven' | 'director'
-  position: number // meters from origin
-  length: number // meters
-  diameter: number // meters
+  position: number // mm from origin
+  length: number // mm
+  diameter: number // mm
   segments?: number // wire segments (default: 21)
 }
 
@@ -167,11 +167,15 @@ export class NEC2Engine {
     let wireNum = 1
     for (const element of params.elements) {
       const segments = element.segments || 21
-      const halfLength = element.length / 2
+      // Convert mm to meters for NEC format
+      const position = element.position / 1000
+      const length = element.length / 1000
+      const diameter = element.diameter / 1000
+      const halfLength = length / 2
 
       // Wire along Y-axis at position X
-      necInput += `GW ${wireNum} ${segments} ${element.position.toFixed(4)} ${(-halfLength).toFixed(4)} 0 `
-      necInput += `${element.position.toFixed(4)} ${halfLength.toFixed(4)} 0 ${(element.diameter / 2).toFixed(6)}\n`
+      necInput += `GW ${wireNum} ${segments} ${position.toFixed(4)} ${(-halfLength).toFixed(4)} 0 `
+      necInput += `${position.toFixed(4)} ${halfLength.toFixed(4)} 0 ${(diameter / 2).toFixed(6)}\n`
       wireNum++
     }
 
@@ -350,8 +354,8 @@ export class NEC2Engine {
           {
             type: 'driven',
             position: 0,
-            length: 1.0,
-            diameter: 0.002,
+            length: 1000, // 1m in mm
+            diameter: 2, // 2mm in mm
             segments: 21,
           },
         ],

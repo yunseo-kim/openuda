@@ -156,12 +156,12 @@ function parseYagiCADFile(content: string): FileParseResult {
           type = 'director'
         }
 
-        // Values are already in meters in YagiCAD files
+        // Values are in meters in YagiCAD files, convert to mm for UI
         const element: AntennaElement = {
           type,
-          position: Math.abs(position),
-          length: length,
-          diameter: diameter,
+          position: Math.abs(position) * 1000, // Convert m to mm
+          length: length * 1000, // Convert m to mm
+          diameter: diameter * 1000, // Convert m to mm
           segments: Math.floor(segments) || 21,
         }
 
@@ -446,10 +446,11 @@ function generateYagiCADFile(antennaParams: AntennaParams): string {
   lines.push(antennaParams.elements.length.toString())
 
   // Element data (YagiCAD format: length, position, diameter, 0, 0, segments, type_flag, 0, 0)
+  // Convert mm to meters for YagiCAD format
   antennaParams.elements.forEach(element => {
-    const length = element.length.toFixed(6)
-    const position = element.position.toFixed(8)
-    const diameter = element.diameter.toFixed(3)
+    const length = (element.length / 1000).toFixed(6) // Convert mm to m
+    const position = (element.position / 1000).toFixed(8) // Convert mm to m
+    const diameter = (element.diameter / 1000).toFixed(3) // Convert mm to m
     const segments = element.segments || 21
 
     // Element type flag: 1 for reflector, 0 for others
@@ -504,15 +505,19 @@ function generateNECFile(antennaParams: AntennaParams, metadata?: Record<string,
   lines.push(`CE`)
 
   // Wire geometry
+  // Convert mm to meters for NEC format
   antennaParams.elements.forEach((element, index) => {
     const tag = index + 1
     const segments = element.segments || 21
-    const halfLength = element.length / 2
-    const radius = element.diameter / 2
+    const position = element.position / 1000 // Convert mm to m
+    const length = element.length / 1000 // Convert mm to m
+    const diameter = element.diameter / 1000 // Convert mm to m
+    const halfLength = length / 2
+    const radius = diameter / 2
 
     lines.push(
-      `GW ${tag} ${segments} ${element.position.toFixed(4)} ${(-halfLength).toFixed(4)} 0 ` +
-        `${element.position.toFixed(4)} ${halfLength.toFixed(4)} 0 ${radius.toFixed(6)}`
+      `GW ${tag} ${segments} ${position.toFixed(4)} ${(-halfLength).toFixed(4)} 0 ` +
+        `${position.toFixed(4)} ${halfLength.toFixed(4)} 0 ${radius.toFixed(6)}`
     )
   })
 
