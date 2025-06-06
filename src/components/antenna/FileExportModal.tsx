@@ -1,6 +1,6 @@
 // File export modal component for antenna design files
 
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   Modal,
   ModalContent,
@@ -118,7 +118,6 @@ export function FileExportModal({
     }
   }, [isExporting, onClose])
 
-  const formatDescription = FILE_FORMATS[format]?.description || ''
   const fileExtension = FILE_FORMATS[format]?.extension || ''
 
   return (
@@ -169,14 +168,21 @@ export function FileExportModal({
                 {/* @ts-ignore */}
                 <Select
                   label="File Format"
-                  description={formatDescription}
+                  placeholder="Select a file format..."
                   selectedKeys={[format]}
                   onSelectionChange={(keys: Selection) => {
                     const selectedFormat = Array.from(keys as Set<string>)[0] as SupportedFileFormat
                     setFormat(selectedFormat)
                   }}
+                  renderValue={(items: Set<React.Key>) => {
+                    if (items.size === 0) return 'Select a file format...'
+                    const selectedFormat = Array.from(items)[0] as SupportedFileFormat
+                    const formatInfo = FILE_FORMATS[selectedFormat]
+                    return `${formatInfo.name} (${formatInfo.extension}) - ${formatInfo.description}`
+                  }}
                   classNames={{
                     trigger: 'bg-gray-50 dark:bg-gray-700',
+                    value: 'text-foreground',
                   }}
                 >
                   <SelectItem key="yc6">{FILE_FORMATS.yc6.name} (.yc6)</SelectItem>
