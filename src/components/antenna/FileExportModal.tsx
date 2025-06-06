@@ -1,6 +1,6 @@
 // File export modal component for antenna design files
 
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Modal,
   ModalContent,
