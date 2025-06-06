@@ -67,7 +67,11 @@ export default [
         Float32Array: 'readonly',
         Float64Array: 'readonly',
         BigInt64Array: 'readonly',
-        BigUint64Array: 'readonly'
+        BigUint64Array: 'readonly',
+        FileList: 'readonly',
+        HTMLInputElement: 'readonly',
+        HTMLDivElement: 'readonly',
+        React: 'readonly'
       },
       parser: tsParser,
       parserOptions: {

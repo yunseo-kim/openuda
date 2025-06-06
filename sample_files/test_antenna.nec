@@ -1,0 +1,13 @@
+CM OpenUda Yagi-Uda Antenna Design
+CM Name: 3-Element Test Yagi
+CM Description: Basic 3-element Yagi for testing
+CM Frequency: 146 MHz
+CE
+GW 1 21 -0.2000 -0.2500 0 -0.2000 0.2500 0 0.005000
+GW 2 21 0.0000 -0.2400 0 0.0000 0.2400 0 0.005000
+GW 3 21 0.1500 -0.2300 0 0.1500 0.2300 0 0.005000
+GE 0
+EX 0 2 11 0 1 0
+GN 1
+FR 0 1 0 0 146 0
+EN 

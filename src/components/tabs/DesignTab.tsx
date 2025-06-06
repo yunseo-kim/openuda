@@ -4,17 +4,27 @@
 
 import { useState } from 'react'
 import { Card, CardBody, Tab, Tabs, Button } from '@heroui/react'
-import { CubeIcon, AdjustmentsHorizontalIcon, BeakerIcon } from '@heroicons/react/24/outline'
+import {
+  CubeIcon,
+  AdjustmentsHorizontalIcon,
+  BeakerIcon,
+  ArrowDownTrayIcon,
+  DocumentArrowUpIcon,
+} from '@heroicons/react/24/outline'
 import { PresetSelector } from '../antenna/PresetSelector'
 import { ParameterForm } from '../antenna/ParameterForm'
 import { Antenna3D } from '../antenna/Antenna3D'
+import { FileUploadDropzone } from '../antenna/FileUploadDropzone'
+import { FileExportModal } from '../antenna/FileExportModal'
 import { useAntennaStore } from '@/stores/antenna/antennaStore'
 import type { AntennaPreset } from '@/types/antenna/presets'
+import type { AntennaParams } from '@/utils/nec2c'
 
-type DesignMode = 'preset' | 'manual'
+type DesignMode = 'preset' | 'manual' | 'import'
 
 export function DesignTab() {
   const [designMode, setDesignMode] = useState<DesignMode>('preset')
+  const [showExportModal, setShowExportModal] = useState(false)
 
   // Get antenna design state from store
   const {
@@ -46,6 +56,20 @@ export function DesignTab() {
         { type: 'director', position: 150, length: 460, diameter: 10 },
       ])
     }
+  }
+
+  // Handle file import
+  const handleFileLoaded = (antennaParams: AntennaParams, metadata?: Record<string, unknown>) => {
+    setFrequency(antennaParams.frequency)
+    setElements(antennaParams.elements)
+    setSelectedPresetId(undefined)
+    setDesignMode('manual')
+    console.log('File loaded:', { antennaParams, metadata })
+  }
+
+  // Handle export button click
+  const handleExport = () => {
+    setShowExportModal(true)
   }
 
   return (
@@ -86,6 +110,15 @@ export function DesignTab() {
                   </div>
                 }
               />
+              <Tab
+                key="import"
+                title={
+                  <div className="flex items-center gap-2">
+                    <DocumentArrowUpIcon className="w-4 h-4" />
+                    <span>Import</span>
+                  </div>
+                }
+              />
             </Tabs>
 
             {/* Content based on mode */}
@@ -110,13 +143,15 @@ export function DesignTab() {
                   </div>
                 )}
               </>
-            ) : (
+            ) : designMode === 'manual' ? (
               <ParameterForm
                 frequency={frequency}
                 elements={elements}
                 onFrequencyChange={setFrequency}
                 onElementsChange={setElements}
               />
+            ) : (
+              <FileUploadDropzone onFileLoaded={handleFileLoaded} className="min-h-[200px]" />
             )}
           </CardBody>
         </Card>
@@ -140,7 +175,14 @@ export function DesignTab() {
 
             <div className="flex-1" />
 
-            <Button color="success" variant="flat" size="sm" isDisabled={elements.length === 0}>
+            <Button
+              color="success"
+              variant="flat"
+              size="sm"
+              isDisabled={elements.length === 0}
+              onPress={handleExport}
+              startContent={<ArrowDownTrayIcon className="w-4 h-4" />}
+            >
               Export
             </Button>
           </CardBody>
@@ -170,6 +212,14 @@ export function DesignTab() {
           </CardBody>
         </Card>
       </div>
+
+      {/* File Export Modal */}
+      <FileExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        antennaParams={{ frequency, elements, groundType: 'perfect' }}
+        defaultFilename="yagi_antenna_design"
+      />
     </div>
   )
 }
