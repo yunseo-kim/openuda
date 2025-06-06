@@ -81,7 +81,8 @@ export function FileExportModal({
         <ModalBody className="space-y-4">
           {/* File Format Selection */}
           <div className="space-y-2">
-            {/* @ts-expect-error HeroUI Select component typing issue */}
+            {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+            {/* @ts-ignore */}
             <Select
               label="File Format"
               description={formatDescription}

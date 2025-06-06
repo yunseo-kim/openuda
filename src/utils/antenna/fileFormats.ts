@@ -111,7 +111,7 @@ function parseYagiCADFile(content: string): FileParseResult {
     const description = lines[4] === 'NONE' ? '' : lines[4]
 
     // Parse performance parameters (lines 5-9)
-    const unknownParam1 = parseFloat(lines[5]) // 의미 불명 (10.81)
+    const antennaGain = parseFloat(lines[5]) // 안테나 이득 (dBi)
     const fbRatio = parseFloat(lines[6]) // F/B ratio (dB)
     const inputResistance = parseFloat(lines[7]) // 입력 임피던스 실수부 (옴)
     const inputReactance = parseFloat(lines[8]) // 입력 임피던스 허수부
@@ -245,12 +245,12 @@ function parseYagiCADFile(content: string): FileParseResult {
       date,
       originalFormat: 'yc6',
       performanceData: {
+        antennaGain,
         fbRatio,
         inputResistance,
         inputReactance,
         efficiency,
         transmissionLineImpedance,
-        unknownParam1,
       },
     }
 
@@ -437,8 +437,8 @@ function generateYagiCADFile(antennaParams: AntennaParams): string {
   lines.push('Exported from OpenUda Web Application')
 
   // Performance parameters (approximations for compatibility)
-  lines.push('10.0') // Unknown parameter 1 (gain estimate)
-  lines.push('15.0') // F/B ratio approximation (dB)
+  lines.push('8.0') // Antenna gain estimate (dBi)
+  lines.push('12.0') // F/B ratio approximation (dB)
   lines.push('50.0') // Input resistance approximation (ohm)
   lines.push('0.0') // Input reactance approximation
 
