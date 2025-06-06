@@ -481,9 +481,9 @@ function generateYagiCADFile(antennaParams: AntennaParams): string {
     const diameter = (element.diameter / 1000).toFixed(3) // Convert mm to m
     const segments = element.segments || 21
 
-    // Element type flag: 1 for reflector, 0 for others
-    let typeFlag = 0 // driven/director
-    if (element.type === 'reflector') {
+    // Element type flag: 1 for driven element, 0 for others (reflector/director)
+    let typeFlag = 0 // reflector/director
+    if (element.type === 'driven') {
       typeFlag = 1
     }
 

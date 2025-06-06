@@ -218,7 +218,7 @@ export function DesignTab() {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         antennaParams={{ frequency, elements, groundType: 'perfect' }}
-        defaultFilename="yagi_antenna_design"
+        defaultFilename="uda_antenna_design"
       />
     </div>
   )
