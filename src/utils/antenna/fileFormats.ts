@@ -87,51 +87,89 @@ function parseYagiCADFile(content: string): FileParseResult {
     const lines = content
       .split('\n')
       .map(line => line.trim())
-      .filter(line => line)
+      .filter(line => line && !line.startsWith('*****'))
 
-    if (lines.length < 2) {
+    if (lines.length < 15) {
       return {
         success: false,
         error: 'Invalid YagiCAD file: insufficient data',
       }
     }
 
-    // Parse frequency (first line should contain frequency info)
-    const frequencyMatch = lines[0].match(/(\d+(?:\.\d+)?)/)
-    if (!frequencyMatch) {
+    // Parse header
+    if (!lines[0].includes('YAGICAD') || !lines[0].includes('FILE')) {
       return {
         success: false,
-        error: 'Could not parse frequency from YagiCAD file',
+        error: 'Invalid YagiCAD file: missing header',
       }
     }
 
-    const frequency = parseFloat(frequencyMatch[1])
+    // Parse metadata (lines 1-4)
+    const title = lines[1] === 'NONE' ? 'Untitled Antenna' : lines[1]
+    const date = lines[2] === 'NONE' ? '' : lines[2]
+    const author = lines[3] === 'NONE' ? '' : lines[3]
+    const description = lines[4] === 'NONE' ? '' : lines[4]
+
+    // Parse performance parameters (lines 5-9)
+    const unknownParam1 = parseFloat(lines[5]) // 의미 불명 (10.81)
+    const fbRatio = parseFloat(lines[6]) // F/B ratio (dB)
+    const inputResistance = parseFloat(lines[7]) // 입력 임피던스 실수부 (옴)
+    const inputReactance = parseFloat(lines[8]) // 입력 임피던스 허수부
+
+    // Parse element count (line 9)
+    const elementCount = parseInt(lines[9])
+    if (isNaN(elementCount) || elementCount <= 0) {
+      return {
+        success: false,
+        error: 'Invalid YagiCAD file: invalid element count',
+      }
+    }
+
+    // Parse element data (lines 10 to 10+elementCount-1)
     const elements: AntennaElement[] = []
     const warnings: string[] = []
 
-    // Parse elements data
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i]
+    for (let i = 0; i < elementCount; i++) {
+      const lineIndex = 10 + i
+      if (lineIndex >= lines.length) {
+        warnings.push(`Missing element data for element ${i + 1}`)
+        continue
+      }
+
+      const line = lines[lineIndex]
       const values = line
         .split(/\s+/)
         .map(v => parseFloat(v))
         .filter(v => !isNaN(v))
 
-      if (values.length >= 2) {
-        const [position, length, diameter = 6] = values // default 6mm diameter
+      if (values.length >= 9) {
+        // YagiCAD format: length, position, diameter, 0, 0, segments, type_flag, 0, 0
+        const [length, position, diameter, , , segments, typeFlag] = values
 
-        // Convert mm to meters for internal format
+        // Determine element type based on type flag and position
+        let type: 'reflector' | 'driven' | 'director'
+        if (typeFlag === 1) {
+          type = 'reflector'
+        } else if (position === 0) {
+          type = 'driven'
+        } else {
+          type = 'director'
+        }
+
+        // Values are already in meters in YagiCAD files
         const element: AntennaElement = {
-          type: i === 1 ? 'reflector' : i === 2 ? 'driven' : 'director',
-          position: position / 1000, // mm to m
-          length: length / 1000, // mm to m
-          diameter: diameter / 1000, // mm to m
-          segments: 21,
+          type,
+          position: Math.abs(position),
+          length: length,
+          diameter: diameter,
+          segments: Math.floor(segments) || 21,
         }
 
         elements.push(element)
       } else {
-        warnings.push(`Line ${i + 1}: Could not parse element data`)
+        warnings.push(
+          `Line ${lineIndex + 1}: Could not parse element data - expected 9 values, got ${values.length}`
+        )
       }
     }
 
@@ -142,15 +180,84 @@ function parseYagiCADFile(content: string): FileParseResult {
       }
     }
 
+    // Parse frequency (line after element data)
+    const frequencyLineIndex = 10 + elementCount
+    if (frequencyLineIndex >= lines.length) {
+      return {
+        success: false,
+        error: 'Missing frequency data in YagiCAD file',
+      }
+    }
+
+    const frequency = parseFloat(lines[frequencyLineIndex])
+    if (isNaN(frequency)) {
+      return {
+        success: false,
+        error: 'Invalid frequency data in YagiCAD file',
+      }
+    }
+
+    // Parse efficiency (next line after frequency)
+    const efficiencyLineIndex = frequencyLineIndex + 1
+    const efficiency =
+      efficiencyLineIndex < lines.length ? parseFloat(lines[efficiencyLineIndex]) : null
+
+    // Parse transmission line impedance (찾을 수 있으면)
+    let transmissionLineImpedance = 50 // default
+    for (let i = frequencyLineIndex + 2; i < Math.min(lines.length, frequencyLineIndex + 15); i++) {
+      const value = parseFloat(lines[i])
+      if (value === 50 || value === 75 || (value >= 25 && value <= 600)) {
+        transmissionLineImpedance = value
+        break
+      }
+    }
+
+    // Sort elements by position
+    elements.sort((a, b) => a.position - b.position)
+
+    // Ensure we have at least one driven element
+    if (!elements.some(e => e.type === 'driven')) {
+      // Find element at position 0 or closest to 0
+      let drivenIndex = 0
+      let minDistance = Math.abs(elements[0].position)
+
+      for (let i = 1; i < elements.length; i++) {
+        const distance = Math.abs(elements[i].position)
+        if (distance < minDistance) {
+          minDistance = distance
+          drivenIndex = i
+        }
+      }
+
+      elements[drivenIndex].type = 'driven'
+    }
+
     const antennaParams: AntennaParams = {
       frequency,
       elements,
       groundType: 'perfect',
     }
 
+    const metadata = {
+      name: title,
+      author,
+      description,
+      date,
+      originalFormat: 'yc6',
+      performanceData: {
+        fbRatio,
+        inputResistance,
+        inputReactance,
+        efficiency,
+        transmissionLineImpedance,
+        unknownParam1,
+      },
+    }
+
     return {
       success: true,
       data: antennaParams,
+      metadata,
       warnings: warnings.length > 0 ? warnings : undefined,
     }
   } catch (error) {
@@ -314,17 +421,67 @@ export function exportAntennaFile(
  */
 function generateYagiCADFile(antennaParams: AntennaParams): string {
   const lines: string[] = []
+  const currentDate = new Date()
+    .toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+    .replace(/\//g, '/')
 
-  // Header with frequency
-  lines.push(`${antennaParams.frequency.toFixed(1)} MHz`)
+  // Header
+  lines.push('VK3DIP YAGICAD 6.0 FILE')
+  lines.push('OpenUda Antenna Design')
+  lines.push(currentDate)
+  lines.push('OpenUda')
+  lines.push('Exported from OpenUda Web Application')
 
-  // Element data (convert meters to mm)
+  // Performance parameters (approximations for compatibility)
+  lines.push('10.0') // Unknown parameter 1 (gain estimate)
+  lines.push('15.0') // F/B ratio approximation (dB)
+  lines.push('50.0') // Input resistance approximation (ohm)
+  lines.push('0.0') // Input reactance approximation
+
+  // Element count
+  lines.push(antennaParams.elements.length.toString())
+
+  // Element data (YagiCAD format: length, position, diameter, 0, 0, segments, type_flag, 0, 0)
   antennaParams.elements.forEach(element => {
-    const position = (element.position * 1000).toFixed(1)
-    const length = (element.length * 1000).toFixed(1)
-    const diameter = (element.diameter * 1000).toFixed(1)
-    lines.push(`${position} ${length} ${diameter}`)
+    const length = element.length.toFixed(6)
+    const position = element.position.toFixed(8)
+    const diameter = element.diameter.toFixed(3)
+    const segments = element.segments || 21
+
+    // Element type flag: 1 for reflector, 0 for others
+    let typeFlag = 0 // driven/director
+    if (element.type === 'reflector') {
+      typeFlag = 1
+    }
+
+    lines.push(
+      `${length}      ${position}      ${diameter}      0      0      ${segments}      ${typeFlag}      0      0`
+    )
   })
+
+  // Frequency (MHz)
+  lines.push(antennaParams.frequency.toFixed(1))
+
+  // Additional parameters
+  lines.push('100') // Efficiency (%)
+  lines.push('DIRECT') // Polarization
+  lines.push('0')
+  lines.push('0')
+  lines.push('0')
+  lines.push('0')
+  lines.push('0')
+  lines.push('0')
+  lines.push('0')
+  lines.push('50') // Transmission line impedance (ohm)
+  lines.push('0')
+  lines.push('0')
+  lines.push('0')
+  lines.push('')
+  lines.push('*****EOF*****')
 
   return lines.join('\n')
 }
