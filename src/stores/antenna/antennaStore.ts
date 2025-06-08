@@ -15,6 +15,7 @@ interface AntennaState {
   setSelectedPresetId: (id?: string) => void
   resetDesign: () => void
   runSimulation: () => Promise<void>
+  runOptimization: (target: 'gain' | 'fbRatio') => Promise<void>
 }
 
 const defaultDesign = {
@@ -64,5 +65,23 @@ export const useAntennaStore = create<AntennaState>((set, get) => ({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown simulation error')
     }
+  },
+
+  runOptimization: async target => {
+    const { setOptimizing, addOptimizationLog, clearOptimizationLog } =
+      useSimulationStore.getState()
+
+    clearOptimizationLog()
+    setOptimizing(true)
+    addOptimizationLog(`Starting optimization for: ${target}...`)
+
+    // Placeholder for actual optimization logic
+    await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate work
+
+    addOptimizationLog('Iteration 1: Adjusting elements...')
+    await new Promise(resolve => setTimeout(resolve, 2000))
+
+    addOptimizationLog('Optimization finished.')
+    setOptimizing(false)
   },
 }))

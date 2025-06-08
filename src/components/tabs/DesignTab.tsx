@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { Card, CardBody, Tab, Tabs, Button } from '@heroui/react'
+import { Card, CardBody, Tab, Tabs, Button, Select, SelectItem } from '@heroui/react'
 import {
   CubeIcon,
   AdjustmentsHorizontalIcon,
@@ -20,14 +20,11 @@ import { useAntennaStore } from '@/stores/antenna/antennaStore'
 import type { AntennaPreset } from '@/types/antenna/presets'
 import type { AntennaParams } from '@/utils/nec2c'
 import { SimulationResultsDisplay } from '../antenna/SimulationResultsDisplay'
+import { useSimulationStore } from '@/stores/simulation.store'
 
 type DesignMode = 'preset' | 'manual' | 'import'
 
 export function DesignTab() {
-  const [designMode, setDesignMode] = useState<DesignMode>('preset')
-  const [showExportModal, setShowExportModal] = useState(false)
-
-  // Get antenna design state from store
   const {
     frequency,
     elements,
@@ -36,7 +33,13 @@ export function DesignTab() {
     setElements,
     setSelectedPresetId,
     resetDesign,
+    runOptimization,
   } = useAntennaStore()
+  const { isOptimizing } = useSimulationStore()
+
+  const [designMode, setDesignMode] = useState<DesignMode>('preset')
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [optimizationTarget, setOptimizationTarget] = useState<'gain' | 'fbRatio'>('gain')
 
   // Handle preset selection
   const handlePresetSelect = (preset: AntennaPreset) => {
@@ -71,6 +74,10 @@ export function DesignTab() {
   // Handle export button click
   const handleExport = () => {
     setShowExportModal(true)
+  }
+
+  const handleOptimize = () => {
+    runOptimization(optimizationTarget)
   }
 
   return (
@@ -161,22 +168,38 @@ export function DesignTab() {
 
         {/* Action Buttons */}
         <Card className="bg-white dark:bg-gray-800">
-          <CardBody className="flex flex-row gap-3">
+          <CardBody className="flex flex-row gap-3 items-center">
             <Button
               color="primary"
-              variant="flat"
+              variant="solid"
               size="sm"
               startContent={<BeakerIcon className="w-4 h-4" />}
-              isDisabled={elements.length === 0}
+              isDisabled={elements.length === 0 || isOptimizing}
+              onPress={handleOptimize}
+              isLoading={isOptimizing}
             >
-              Simulate
+              {isOptimizing ? 'Optimizing...' : 'Optimize'}
             </Button>
+            <Select
+              aria-label="Optimization Target"
+              size="sm"
+              placeholder="Target"
+              className="max-w-[150px]"
+              selectedKeys={[optimizationTarget]}
+              onSelectionChange={keys =>
+                setOptimizationTarget(Array.from(keys)[0] as 'gain' | 'fbRatio')
+              }
+              isDisabled={elements.length === 0 || isOptimizing}
+            >
+              <SelectItem key="gain">Gain</SelectItem>
+              <SelectItem key="fbRatio">F/B Ratio</SelectItem>
+            </Select>
+
+            <div className="flex-1" />
 
             <Button color="default" variant="flat" size="sm" onPress={resetDesign}>
               Reset
             </Button>
-
-            <div className="flex-1" />
 
             <Button
               color="success"
