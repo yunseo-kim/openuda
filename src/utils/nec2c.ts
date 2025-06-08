@@ -246,8 +246,9 @@ export class NEC2Engine {
 
     try {
       // A more specific regex to capture impedance from the correct table row.
+      // This regex skips the 4 values for voltage and current before capturing impedance.
       const impedanceMatch = output.match(
-        /ANTENNA INPUT PARAMETERS -+[\s\S]*?IMPEDANCE \(OHMS\)[\s\S]*?\n\s*\d+\s+\d+.*? ([-+]?\d+\.\d+E[+-]\d+)\s+([-+]?\d+\.\d+E[+-]\d+)/
+        /ANTENNA INPUT PARAMETERS -+[\s\S]*?IMPEDANCE \(OHMS\)[\s\S]*?\n\s*\d+\s+\d+\s+(?:[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?\s+){4}([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/
       )
 
       if (impedanceMatch) {
