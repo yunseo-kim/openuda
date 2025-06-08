@@ -1,5 +1,5 @@
 import { Button, Card, CardBody, CardHeader, Divider } from '@heroui/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { nec2Engine, testNEC2Engine, type AntennaParams } from '@/utils/nec2c'
 
 /**
@@ -10,8 +10,13 @@ import { nec2Engine, testNEC2Engine, type AntennaParams } from '@/utils/nec2c'
  */
 export function NEC2Test() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isEngineLoaded, setIsEngineLoaded] = useState(false)
   const [result, setResult] = useState<string>('')
   const [error, setError] = useState<string>('')
+
+  useEffect(() => {
+    setIsEngineLoaded(nec2Engine.getStatus().loaded)
+  }, [])
 
   const handleLoadEngine = async () => {
     setIsLoading(true)
@@ -21,9 +26,11 @@ export function NEC2Test() {
     try {
       await nec2Engine.loadModule()
       setResult('Engine loaded successfully!')
+      setIsEngineLoaded(true)
     } catch (err) {
       console.error('Failed to load engine:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
+      setIsEngineLoaded(false)
     } finally {
       setIsLoading(false)
     }
@@ -46,6 +53,7 @@ export function NEC2Test() {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
+      setIsEngineLoaded(false)
     }
   }
 
@@ -98,10 +106,9 @@ Simulation Results:
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
+      setIsEngineLoaded(false)
     }
   }
-
-  const engineStatus = nec2Engine.getStatus()
 
   return (
     <Card className="m-4 max-w-4xl bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
@@ -117,15 +124,15 @@ Simulation Results:
             </p>
             <span
               className={`text-sm font-semibold px-2 py-1 rounded-full ${
-                engineStatus.loaded
+                isEngineLoaded
                   ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                   : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
               }`}
             >
-              {engineStatus.loaded ? '✅ Loaded' : '❌ Not Loaded'}
+              {isEngineLoaded ? '✅ Loaded' : '❌ Not Loaded'}
             </span>
           </div>
-          {engineStatus.loading && (
+          {isLoading && !isEngineLoaded && (
             <div className="mt-2 flex items-center gap-2">
               <div className="animate-spin w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
               <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
@@ -140,24 +147,24 @@ Simulation Results:
             color="primary"
             variant="solid"
             onPress={handleLoadEngine}
-            isLoading={isLoading && !engineStatus.loaded}
-            isDisabled={engineStatus.loaded}
+            isLoading={isLoading && !isEngineLoaded}
+            isDisabled={isEngineLoaded}
             className="min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm border-0"
             style={{
-              background: engineStatus.loaded ? '#10b981' : '#2563eb',
+              background: isEngineLoaded ? '#10b981' : '#2563eb',
               color: 'white',
               border: 'none',
             }}
           >
-            {engineStatus.loaded ? '✅ Loaded' : '🔄 Load Engine'}
+            {isEngineLoaded ? '✅ Loaded' : '🔄 Load Engine'}
           </Button>
 
           <Button
             color="secondary"
             variant="solid"
             onPress={handleTestEngine}
-            isLoading={isLoading && engineStatus.loaded}
-            isDisabled={!engineStatus.loaded}
+            isLoading={isLoading && isEngineLoaded}
+            isDisabled={!isEngineLoaded}
             className="min-w-[120px] bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm border-0"
             style={{
               background: '#7c3aed',
@@ -172,8 +179,8 @@ Simulation Results:
             color="success"
             variant="solid"
             onPress={handleRunSimulation}
-            isLoading={isLoading && engineStatus.loaded}
-            isDisabled={!engineStatus.loaded}
+            isLoading={isLoading && isEngineLoaded}
+            isDisabled={!isEngineLoaded}
             className="min-w-[160px] bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm border-0"
             style={{
               background: '#059669',
