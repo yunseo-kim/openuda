@@ -54,6 +54,7 @@ export function NEC2Test() {
     } finally {
       setIsLoading(false)
       setIsEngineLoaded(false)
+      nec2Engine.unload()
     }
   }
 
@@ -107,6 +108,7 @@ Simulation Results:
     } finally {
       setIsLoading(false)
       setIsEngineLoaded(false)
+      nec2Engine.unload()
     }
   }
 

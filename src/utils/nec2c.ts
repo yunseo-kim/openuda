@@ -491,6 +491,15 @@ export class NEC2Engine {
       loading: this.isLoading,
     }
   }
+
+  /**
+   * Unload the engine and reset the state
+   */
+  unload(): void {
+    this.module = null
+    this.isLoaded = false
+    console.log('NEC2C engine unloaded and state reset.')
+  }
 }
 
 // Global engine instance
