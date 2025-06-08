@@ -120,6 +120,8 @@ export class NEC2Engine {
 
       // Initialize the module with single-threaded configuration
       this.module = await moduleFactory({
+        // Prevent main() from running on initialization
+        noInitialRun: true,
         // Locate WASM files
         locateFile: (path: string) => {
           if (path.endsWith('.wasm')) {
@@ -324,24 +326,14 @@ export class NEC2Engine {
       let result: number
 
       try {
-        // Try to use callMain if available
-        if (this.module.callMain) {
-          // Use callMain with just the input file
-          result = this.module.callMain([inputFilename])
-        } else if (this.module.ccall) {
-          // Use ccall to invoke the main function
-          result = this.module.ccall(
-            'main',
-            'number',
-            ['number', 'array'],
-            [
-              2, // argc
-              [inputFilename], // argv - just input file
-            ]
-          )
-        } else {
-          throw new NEC2Error('No method available to call NEC2C main function', 'NO_MAIN')
+        // The module MUST have callMain method.
+        if (!this.module.callMain) {
+          throw new NEC2Error('Module is missing the callMain method', 'NO_MAIN')
         }
+
+        const outputFilename = inputFilename.replace('.nec', '.out')
+        // Use callMain with input and output file arguments
+        result = this.module.callMain(['-i', inputFilename, '-o', outputFilename])
       } catch (err) {
         console.error('Error calling NEC2C:', err)
         // Even if main returns non-zero, we might have output
