@@ -124,7 +124,7 @@ emcc \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s WASM_MEM_MAX=512MB \
   -s SHARED_MEMORY=1 \
-  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS"]' \
+  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "callMain"]' \
   -s ENVIRONMENT='web,worker' \
   -s MODULARIZE=1 \
   -s EXPORT_NAME='NEC2Module' \
@@ -144,7 +144,7 @@ emcc \
   -msimd128 \
   -s WASM=1 \
   -s ALLOW_MEMORY_GROWTH=1 \
-  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS"]' \
+  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "callMain"]' \
   -s ENVIRONMENT='web,worker' \
   -s MODULARIZE=1 \
   -s EXPORT_NAME='NEC2ModuleSingleThread' \
@@ -183,7 +183,7 @@ else
   emcc \
     -O2 \
     -s WASM=1 \
-    -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS"]' \
+    -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "callMain"]' \
     -s ALLOW_MEMORY_GROWTH=1 \
     -s ENVIRONMENT='web,worker' \
     -s MODULARIZE=1 \

@@ -209,8 +209,16 @@ export class NEC2Engine {
     necInput += `FR 0 1 0 0 ${params.frequency} 0\n`
 
     // Radiation pattern requests
-    necInput += `RP 0 91 1 1000 90 0 4 0\n` // Horizontal pattern
-    necInput += `RP 0 91 1 1000 0 0 4 0\n` // Vertical pattern
+    // Horizontal pattern: Theta=90, Phi sweep 0-360 deg, 1-deg steps
+    necInput += `RP 0 1 361 1000 90 0 0 1\n`
+    // Vertical pattern: Phi=0, Theta sweep based on ground presence
+    if (params.groundType === 'none') {
+      // Full vertical plane for free space
+      necInput += `RP 0 181 1 1000 0 0 1 0\n`
+    } else {
+      // Upper hemisphere only for ground plane
+      necInput += `RP 0 91 1 1000 0 0 1 0\n`
+    }
 
     // End
     necInput += `EN\n`
@@ -222,7 +230,14 @@ export class NEC2Engine {
    * Parse NEC output and extract simulation results
    */
   private parseNECOutput(output: string): SimulationResults {
-    const results: Partial<SimulationResults> = {
+    const results: Partial<SimulationResults> & {
+      patterns: { horizontal: PatternData[]; vertical: PatternData[] }
+    } = {
+      gain: 0,
+      frontToBackRatio: 0,
+      vswr: 0,
+      efficiency: 100, // Default to 100% for perfect conductors
+      inputImpedance: { resistance: 0, reactance: 0 },
       patterns: {
         horizontal: [],
         vertical: [],
@@ -230,67 +245,108 @@ export class NEC2Engine {
     }
 
     try {
-      console.log('Parsing NEC output...')
-      console.log('Output length:', output.length)
-
-      // Extract input impedance - NEC2C format
+      // A more specific regex to capture impedance from the correct table row.
       const impedanceMatch = output.match(
-        /ANTENNA INPUT PARAMETERS[\s\S]*?TAG\s+SEGM\s+TAG\s+SEGM\s+IMPEDANCE\s+\(OHMS\)\s+ADMITTANCE\s+\(MHOS\)\s+EX\s*\n\s*NO\.\s+NO\.\s+NO\.\s+NO\.\s+REAL\s+IMAGINARY\s+REAL\s+IMAGINARY\s+\(MA\)\s*\n\s*\d+\s+\d+\s+\d+\s+\d+\s+([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)/
+        /ANTENNA INPUT PARAMETERS -+[\s\S]*?IMPEDANCE \(OHMS\)[\s\S]*?\n\s*\d+\s+\d+.*? ([-+]?\d+\.\d+E[+-]\d+)\s+([-+]?\d+\.\d+E[+-]\d+)/
       )
-      if (impedanceMatch) {
-        results.inputImpedance = {
-          resistance: parseFloat(impedanceMatch[1]),
-          reactance: parseFloat(impedanceMatch[2]),
-        }
 
-        // Calculate VSWR
-        const z0 = 50 // Standard 50-ohm system
-        const zr = results.inputImpedance.resistance
-        const zi = results.inputImpedance.reactance
-        const gamma = Math.sqrt(((zr - z0) ** 2 + zi ** 2) / ((zr + z0) ** 2 + zi ** 2))
+      if (impedanceMatch) {
+        const resistance = parseFloat(impedanceMatch[1])
+        const reactance = parseFloat(impedanceMatch[2])
+        results.inputImpedance = { resistance, reactance }
+
+        const z0 = 50 // 50-ohm system
+        const gamma = Math.sqrt(
+          ((resistance - z0) ** 2 + reactance ** 2) / ((resistance + z0) ** 2 + reactance ** 2)
+        )
         results.vswr = (1 + gamma) / (1 - gamma)
       }
 
-      // Extract gain from radiation pattern data
-      const patternMatch = output.match(
-        /RADIATION PATTERNS[\s\S]*?POWER GAINS -[\s\S]*?THETA\s+PHI\s+.*?\s+GAIN[\s\S]*?\n([\s\S]*?)(?:\n\n|$)/
-      )
-      if (patternMatch) {
-        const lines = patternMatch[1].trim().split('\n')
-        let maxGain = -999
-        let frontGain = 0
-        let backGain = 0
+      // Extract radiation patterns
+      const patternSections = output.split('RADIATION PATTERNS')
+      if (patternSections.length > 1) {
+        // First pattern is horizontal (phi sweep), second is vertical (theta sweep)
+        const horizontalPatternText = patternSections[1]
+        const verticalPatternText = patternSections[2]
 
-        for (const line of lines) {
-          const values = line.trim().split(/\s+/)
-          if (values.length >= 8) {
-            const theta = parseFloat(values[0])
-            const phi = parseFloat(values[1])
-            const gain = parseFloat(values[7]) // Total gain in dB
+        const parsePattern = (
+          text: string,
+          patternType: 'horizontal' | 'vertical'
+        ): PatternData[] => {
+          if (!text) return []
+          const lines = text.split('\n')
+          const patternData: PatternData[] = []
+          const angleIndex = patternType === 'horizontal' ? 1 : 0 // PHI for H, THETA for V
+          const phaseIndex = patternType === 'horizontal' ? 9 : 8 // E(PHI) for H, E(THETA) for V
 
-            if (gain > maxGain) {
-              maxGain = gain
-            }
-
-            // Front (phi = 0) and back (phi = 180) for F/B ratio
-            if (Math.abs(phi) < 5 && Math.abs(theta - 90) < 5) {
-              frontGain = gain
-            } else if (Math.abs(phi - 180) < 5 && Math.abs(theta - 90) < 5) {
-              backGain = gain
+          for (const line of lines) {
+            const values = line.trim().split(/\s+/)
+            if (values.length >= 10 && !isNaN(parseFloat(values[0]))) {
+              patternData.push({
+                angle: parseFloat(values[angleIndex]),
+                gainDb: parseFloat(values[4]), // TOTAL GAIN in DB
+                phase: parseFloat(values[phaseIndex]) || 0,
+              })
             }
           }
+          return patternData
         }
 
-        results.gain = maxGain
-        results.frontToBackRatio = frontGain - backGain
+        results.patterns.horizontal = parsePattern(horizontalPatternText, 'horizontal')
+        results.patterns.vertical = parsePattern(verticalPatternText, 'vertical')
+
+        // Find max gain from both patterns
+        let maxGain = -Infinity
+        results.patterns.horizontal.forEach(p => (maxGain = Math.max(maxGain, p.gainDb)))
+        results.patterns.vertical.forEach(p => (maxGain = Math.max(maxGain, p.gainDb)))
+        results.gain = isFinite(maxGain) ? maxGain : 0
+
+        // More robust F/B ratio calculation from horizontal pattern
+        if (results.patterns.horizontal.length > 0) {
+          let hMaxGain = -Infinity
+          let frontAngle = 0
+          // Find angle of maximum gain
+          results.patterns.horizontal.forEach(p => {
+            if (p.gainDb > hMaxGain) {
+              hMaxGain = p.gainDb
+              frontAngle = p.angle
+            }
+          })
+
+          const backAngle = (frontAngle + 180) % 360
+
+          // Find the closest point to the ideal back angle
+          let backPoint: PatternData | null = null
+          let minAngleDiff = Infinity
+
+          results.patterns.horizontal.forEach(p => {
+            const angleDiff = Math.abs(p.angle - backAngle)
+            if (angleDiff < minAngleDiff) {
+              minAngleDiff = angleDiff
+              backPoint = p
+            }
+          })
+
+          if (backPoint) {
+            results.frontToBackRatio = hMaxGain - backPoint.gainDb
+          } else {
+            console.warn(`Could not find back lobe gain near angle ${backAngle}. F/B set to 0.`)
+            results.frontToBackRatio = 0
+          }
+        }
       }
 
-      // Default values if not found
-      results.gain = results.gain || 0
-      results.frontToBackRatio = results.frontToBackRatio || 0
-      results.efficiency = 85 // Estimated default
-      results.frequency = 146 // Will be overwritten by actual frequency
-      results.vswr = results.vswr || 1.5
+      // Extract efficiency if available
+      const efficiencyMatch = output.match(/RADIATION EFFICIENCY\s+=\s+([-+]?\d+\.\d+)\s+PERCENT/)
+      if (efficiencyMatch) {
+        results.efficiency = parseFloat(efficiencyMatch[1])
+      }
+
+      // Extract frequency
+      const freqMatch = output.match(/FREQUENCY=\s*([0-9.E\s+-]+)\s*MHZ/)
+      if (freqMatch) {
+        results.frequency = parseFloat(freqMatch[1])
+      }
 
       console.log('Parsed results:', results)
     } catch (error) {
@@ -379,9 +435,12 @@ export class NEC2Engine {
       // Cleanup
       try {
         this.module.FS.unlink(inputFilename)
+        this.module.FS.unlink(outputFilename)
       } catch (error) {
         console.warn('Failed to cleanup temporary files:', error)
       }
+
+      console.log('==== NEC2C RAW OUTPUT (for debugging) ====\\n', output)
 
       return simulationResults
     } catch (error) {
