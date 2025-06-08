@@ -104,38 +104,52 @@ Simulation Results:
   const engineStatus = nec2Engine.getStatus()
 
   return (
-    <Card className="m-4 max-w-4xl">
-      <CardHeader>
-        <h2 className="text-xl font-bold">NEC2C Engine Test</h2>
+    <Card className="m-4 max-w-4xl bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
+      <CardHeader className="bg-gray-50 dark:bg-gray-900 px-6 py-4">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">🧪 NEC2C Engine Test</h2>
       </CardHeader>
-      <Divider />
-      <CardBody className="space-y-4">
-        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <p className="text-sm">
-            Engine Status:{' '}
+      <Divider className="border-gray-200 dark:border-gray-700" />
+      <CardBody className="space-y-4 p-6">
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-lg border border-blue-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              🔧 Engine Status:
+            </p>
             <span
-              className={
+              className={`text-sm font-semibold px-2 py-1 rounded-full ${
                 engineStatus.loaded
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-red-600 dark:text-red-400'
-              }
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              }`}
             >
               {engineStatus.loaded ? '✅ Loaded' : '❌ Not Loaded'}
             </span>
-          </p>
-          {engineStatus.loading && <p className="text-sm text-yellow-600">⏳ Loading...</p>}
+          </div>
+          {engineStatus.loading && (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="animate-spin w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                ⏳ Loading...
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           <Button
             color="primary"
             variant="solid"
             onPress={handleLoadEngine}
             isLoading={isLoading && !engineStatus.loaded}
             isDisabled={engineStatus.loaded}
-            className="min-w-[120px]"
+            className="min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm border-0"
+            style={{
+              background: engineStatus.loaded ? '#10b981' : '#2563eb',
+              color: 'white',
+              border: 'none',
+            }}
           >
-            {engineStatus.loaded ? 'Loaded' : 'Load Engine'}
+            {engineStatus.loaded ? '✅ Loaded' : '🔄 Load Engine'}
           </Button>
 
           <Button
@@ -144,9 +158,14 @@ Simulation Results:
             onPress={handleTestEngine}
             isLoading={isLoading && engineStatus.loaded}
             isDisabled={!engineStatus.loaded}
-            className="min-w-[120px]"
+            className="min-w-[120px] bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm border-0"
+            style={{
+              background: '#7c3aed',
+              color: 'white',
+              border: 'none',
+            }}
           >
-            Run Basic Test
+            🧪 Basic Test
           </Button>
 
           <Button
@@ -155,30 +174,61 @@ Simulation Results:
             onPress={handleRunSimulation}
             isLoading={isLoading && engineStatus.loaded}
             isDisabled={!engineStatus.loaded}
-            className="min-w-[160px]"
+            className="min-w-[160px] bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm border-0"
+            style={{
+              background: '#059669',
+              color: 'white',
+              border: 'none',
+            }}
           >
-            Run Antenna Simulation
+            📡 Antenna Simulation
           </Button>
         </div>
 
         {result && (
-          <div className="p-4 bg-green-100 dark:bg-green-900 rounded-lg">
-            <pre className="whitespace-pre-wrap text-sm">{result}</pre>
+          <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 rounded-lg border border-green-200 dark:border-green-700">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-green-600 dark:text-green-400 text-lg">✅</span>
+              <h3 className="font-semibold text-green-800 dark:text-green-200">
+                Execution Results
+              </h3>
+            </div>
+            <pre className="whitespace-pre-wrap text-sm text-green-800 dark:text-green-200 bg-white dark:bg-gray-800 p-3 rounded border">
+              {result}
+            </pre>
           </div>
         )}
 
         {error && (
-          <div className="p-4 bg-red-100 dark:bg-red-900 rounded-lg">
-            <p className="text-red-700 dark:text-red-200 text-sm">{error}</p>
+          <div className="p-4 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900 dark:to-pink-900 rounded-lg border border-red-200 dark:border-red-700">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-red-600 dark:text-red-400 text-lg">❌</span>
+              <h3 className="font-semibold text-red-800 dark:text-red-200">Error Occurred</h3>
+            </div>
+            <p className="text-red-700 dark:text-red-200 text-sm bg-white dark:bg-gray-800 p-3 rounded border">
+              {error}
+            </p>
           </div>
         )}
 
-        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
-          <h3 className="font-bold text-sm mb-2">Instructions:</h3>
-          <ol className="list-decimal list-inside space-y-1 text-sm">
-            <li>First click "Load Engine" to load the NEC2C WebAssembly module.</li>
-            <li>Use "Run Basic Test" to verify the engine works correctly.</li>
-            <li>Use "Run Antenna Simulation" to simulate a 3-element Yagi antenna.</li>
+        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900 dark:to-cyan-900 rounded-lg border border-blue-200 dark:border-blue-700">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-blue-600 dark:text-blue-400 text-lg">💡</span>
+            <h3 className="font-bold text-sm text-blue-800 dark:text-blue-200">Instructions</h3>
+          </div>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-blue-700 dark:text-blue-300">
+            <li className="flex items-start gap-2">
+              <span className="text-blue-500 dark:text-blue-400">1️⃣</span>
+              <span>First click "🔄 Load Engine" to load the NEC2C WebAssembly module.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-500 dark:text-blue-400">2️⃣</span>
+              <span>Use "🧪 Basic Test" to verify the engine works correctly.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-500 dark:text-blue-400">3️⃣</span>
+              <span>Use "📡 Antenna Simulation" to simulate a 3-element Yagi antenna.</span>
+            </li>
           </ol>
         </div>
       </CardBody>
