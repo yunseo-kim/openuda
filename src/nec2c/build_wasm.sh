@@ -8,7 +8,7 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 NEC2C_DIR="$SCRIPT_DIR"
-OUTPUT_DIR="$REPO_ROOT/js/modules/wasm"
+OUTPUT_DIR="$REPO_ROOT/public/wasm"
 EMSDK_DIR="$REPO_ROOT/emsdk"
 
 echo "Repository root: $REPO_ROOT"

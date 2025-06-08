@@ -104,7 +104,7 @@ export class NEC2Engine {
       if (supportsSharedArrayBuffer) {
         console.log('Loading multithreaded NEC2C engine...')
         // Dynamic import for multithreaded version - load directly from public folder
-        const response = await fetch('/js/modules/wasm/nec2_direct.js')
+        const response = await fetch('/wasm/nec2_direct.js')
         const moduleText = await response.text()
         const moduleBlob = new Blob([moduleText], { type: 'application/javascript' })
         const moduleUrl = URL.createObjectURL(moduleBlob)
@@ -113,7 +113,7 @@ export class NEC2Engine {
       } else {
         console.log('Loading single-threaded NEC2C engine (SharedArrayBuffer not supported)...')
         // Dynamic import for single-threaded version - load directly from public folder
-        const response = await fetch('/js/modules/wasm/nec2_direct_single.js')
+        const response = await fetch('/wasm/nec2_direct_single.js')
         const moduleText = await response.text()
         const moduleBlob = new Blob([moduleText], { type: 'application/javascript' })
         const moduleUrl = URL.createObjectURL(moduleBlob)
@@ -127,11 +127,11 @@ export class NEC2Engine {
         locateFile: (path: string) => {
           if (path.endsWith('.wasm')) {
             return supportsSharedArrayBuffer
-              ? '/js/modules/wasm/nec2_direct.wasm'
-              : '/js/modules/wasm/nec2_direct_single.wasm'
+              ? '/wasm/nec2_direct.wasm'
+              : '/wasm/nec2_direct_single.wasm'
           }
           if (path.endsWith('.worker.js')) {
-            return '/js/modules/wasm/nec2_direct.worker.js'
+            return '/wasm/nec2_direct.worker.js'
           }
           return path
         },
