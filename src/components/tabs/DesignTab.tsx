@@ -19,6 +19,7 @@ import { FileExportModal } from '../antenna/FileExportModal'
 import { useAntennaStore } from '@/stores/antenna/antennaStore'
 import type { AntennaPreset } from '@/types/antenna/presets'
 import type { AntennaParams } from '@/utils/nec2c'
+import { SimulationResultsDisplay } from '../antenna/SimulationResultsDisplay'
 
 type DesignMode = 'preset' | 'manual' | 'import'
 
@@ -155,6 +156,8 @@ export function DesignTab() {
             )}
           </CardBody>
         </Card>
+
+        <SimulationResultsDisplay />
 
         {/* Action Buttons */}
         <Card className="bg-white dark:bg-gray-800">
