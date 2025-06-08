@@ -17,10 +17,9 @@ import { Antenna3D } from '../antenna/Antenna3D'
 import { FileUploadDropzone } from '../antenna/FileUploadDropzone'
 import { FileExportModal } from '../antenna/FileExportModal'
 import { useAntennaStore } from '@/stores/antenna/antennaStore'
+import { useSimulationStore } from '@/stores/simulation.store'
 import type { AntennaPreset } from '@/types/antenna/presets'
 import type { AntennaParams } from '@/utils/nec2c'
-import { SimulationResultsDisplay } from '../antenna/SimulationResultsDisplay'
-import { useSimulationStore } from '@/stores/simulation.store'
 
 type DesignMode = 'preset' | 'manual' | 'import'
 
@@ -164,14 +163,12 @@ export function DesignTab() {
           </CardBody>
         </Card>
 
-        <SimulationResultsDisplay />
-
         {/* Action Buttons */}
         <Card className="bg-white dark:bg-gray-800">
           <CardBody className="flex flex-row gap-3 items-center">
             <Button
               color="primary"
-              variant="solid"
+              variant="flat"
               size="sm"
               startContent={<BeakerIcon className="w-4 h-4" />}
               isDisabled={elements.length === 0 || isOptimizing}
@@ -195,11 +192,11 @@ export function DesignTab() {
               <SelectItem key="fbRatio">F/B Ratio</SelectItem>
             </Select>
 
-            <div className="flex-1" />
-
             <Button color="default" variant="flat" size="sm" onPress={resetDesign}>
               Reset
             </Button>
+
+            <div className="flex-1" />
 
             <Button
               color="success"

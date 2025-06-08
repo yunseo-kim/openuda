@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { PresetElement } from '@/types/antenna/presets'
-import { simulateAntenna, type AntennaParams } from '@/utils/nec2c'
+import { simulateAntenna, type AntennaParams, nec2Engine } from '@/utils/nec2c'
 import { useSimulationStore } from '../simulation.store'
 
 interface AntennaState {
@@ -64,6 +64,8 @@ export const useAntennaStore = create<AntennaState>((set, get) => ({
       setResults(results)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown simulation error')
+    } finally {
+      nec2Engine.unload() // Ensure engine is always unloaded
     }
   },
 
