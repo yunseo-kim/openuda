@@ -320,13 +320,13 @@ export class NEC2Engine {
           let backPoint: PatternData | null = null
           let minAngleDiff = Infinity
 
-          results.patterns.horizontal.forEach(p => {
+          for (const p of results.patterns.horizontal) {
             const angleDiff = Math.abs(p.angle - backAngle)
             if (angleDiff < minAngleDiff) {
               minAngleDiff = angleDiff
               backPoint = p
             }
-          })
+          }
 
           if (backPoint) {
             results.frontToBackRatio = hMaxGain - backPoint.gainDb
