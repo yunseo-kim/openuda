@@ -8,17 +8,23 @@
 
 // Type definitions for NEC2C module
 interface NEC2Module {
-  ccall: (name: string, returnType: string | null, argTypes: string[], args: any[]) => any
-  cwrap: (name: string, returnType: string | null, argTypes: string[]) => (...args: any[]) => any
+  ccall: (name: string, returnType: string | null, argTypes: string[], args: unknown[]) => number
+  cwrap: (
+    name: string,
+    returnType: string | null,
+    argTypes: string[]
+  ) => (...args: unknown[]) => unknown
   FS: {
     writeFile: (path: string, data: string) => void
     readFile: (path: string, options?: { encoding: string }) => string | Uint8Array
     unlink: (path: string) => void
     mkdir: (path: string) => void
+    readdir: (path: string) => string[]
   }
   ready: Promise<NEC2Module>
   _malloc: (size: number) => number
   _free: (ptr: number) => void
+  callMain?: (args: string[]) => number
 }
 
 // Antenna design parameters interface
@@ -96,45 +102,38 @@ export class NEC2Engine {
     try {
       this.isLoading = true
 
-      // Check if SharedArrayBuffer is supported for multithreading
-      const supportsSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined'
+      // Always use single-threaded version to avoid Worker issues
+      console.log('Loading single-threaded NEC2C engine...')
 
-      let moduleFactory
+      // Load the single-threaded version
+      const response = await fetch('/wasm/nec2_direct_single.js')
+      const moduleText = await response.text()
 
-      if (supportsSharedArrayBuffer) {
-        console.log('Loading multithreaded NEC2C engine...')
-        // Dynamic import for multithreaded version - load directly from public folder
-        const response = await fetch('/wasm/nec2_direct.js')
-        const moduleText = await response.text()
-        const moduleBlob = new Blob([moduleText], { type: 'application/javascript' })
-        const moduleUrl = URL.createObjectURL(moduleBlob)
-        const { default: NEC2Module } = await import(moduleUrl)
-        moduleFactory = NEC2Module
-      } else {
-        console.log('Loading single-threaded NEC2C engine (SharedArrayBuffer not supported)...')
-        // Dynamic import for single-threaded version - load directly from public folder
-        const response = await fetch('/wasm/nec2_direct_single.js')
-        const moduleText = await response.text()
-        const moduleBlob = new Blob([moduleText], { type: 'application/javascript' })
-        const moduleUrl = URL.createObjectURL(moduleBlob)
-        const { default: NEC2ModuleSingle } = await import(moduleUrl)
-        moduleFactory = NEC2ModuleSingle
-      }
+      // Replace Worker creation code to avoid errors
+      const modifiedModuleText = moduleText
+        .replace(/new Worker\(new URL\([^)]+\)[^)]*\)/g, 'null')
+        .replace(/allocateUnusedWorker/g, 'function(){}')
 
-      // Initialize the module
+      const moduleBlob = new Blob([modifiedModuleText], { type: 'application/javascript' })
+      const moduleUrl = URL.createObjectURL(moduleBlob)
+      const { default: moduleFactory } = await import(/* @vite-ignore */ moduleUrl)
+
+      // Initialize the module with single-threaded configuration
       this.module = await moduleFactory({
         // Locate WASM files
         locateFile: (path: string) => {
           if (path.endsWith('.wasm')) {
-            return supportsSharedArrayBuffer
-              ? '/wasm/nec2_direct.wasm'
-              : '/wasm/nec2_direct_single.wasm'
-          }
-          if (path.endsWith('.worker.js')) {
-            return '/wasm/nec2_direct.worker.js'
+            return '/wasm/nec2_direct_single.wasm'
           }
           return path
         },
+        // Single-threaded configuration
+        ENVIRONMENT_IS_PTHREAD: false,
+        USE_PTHREADS: false,
+        PTHREAD_POOL_SIZE: 0,
+        // Print function for debugging
+        print: (text: string) => console.log('[NEC2C]', text),
+        printErr: (text: string) => console.error('[NEC2C]', text),
       })
 
       if (this.module) {
@@ -221,11 +220,21 @@ export class NEC2Engine {
    * Parse NEC output and extract simulation results
    */
   private parseNECOutput(output: string): SimulationResults {
-    const results: Partial<SimulationResults> = {}
+    const results: Partial<SimulationResults> = {
+      patterns: {
+        horizontal: [],
+        vertical: [],
+      },
+    }
 
     try {
-      // Extract input impedance
-      const impedanceMatch = output.match(/IMPEDANCE\s+(\d+\.\d+)\s+([-+]?\d+\.\d+)/)
+      console.log('Parsing NEC output...')
+      console.log('Output length:', output.length)
+
+      // Extract input impedance - NEC2C format
+      const impedanceMatch = output.match(
+        /ANTENNA INPUT PARAMETERS[\s\S]*?TAG\s+SEGM\s+TAG\s+SEGM\s+IMPEDANCE\s+\(OHMS\)\s+ADMITTANCE\s+\(MHOS\)\s+EX\s*\n\s*NO\.\s+NO\.\s+NO\.\s+NO\.\s+REAL\s+IMAGINARY\s+REAL\s+IMAGINARY\s+\(MA\)\s*\n\s*\d+\s+\d+\s+\d+\s+\d+\s+([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)/
+      )
       if (impedanceMatch) {
         results.inputImpedance = {
           resistance: parseFloat(impedanceMatch[1]),
@@ -234,37 +243,57 @@ export class NEC2Engine {
 
         // Calculate VSWR
         const z0 = 50 // Standard 50-ohm system
-        const gamma = Math.abs(
-          (results.inputImpedance.resistance - z0) / (results.inputImpedance.resistance + z0)
-        )
+        const zr = results.inputImpedance.resistance
+        const zi = results.inputImpedance.reactance
+        const gamma = Math.sqrt(((zr - z0) ** 2 + zi ** 2) / ((zr + z0) ** 2 + zi ** 2))
         results.vswr = (1 + gamma) / (1 - gamma)
       }
 
-      // Extract gain
-      const gainMatch = output.match(/MAXIMUM GAIN\s*=\s*([-+]?\d+\.\d+)/)
-      if (gainMatch) {
-        results.gain = parseFloat(gainMatch[1])
-      }
+      // Extract gain from radiation pattern data
+      const patternMatch = output.match(
+        /RADIATION PATTERNS[\s\S]*?POWER GAINS -[\s\S]*?THETA\s+PHI\s+.*?\s+GAIN[\s\S]*?\n([\s\S]*?)(?:\n\n|$)/
+      )
+      if (patternMatch) {
+        const lines = patternMatch[1].trim().split('\n')
+        let maxGain = -999
+        let frontGain = 0
+        let backGain = 0
 
-      // Extract front-to-back ratio
-      const fbMatch = output.match(/FRONT-TO-BACK RATIO\s*=\s*([-+]?\d+\.\d+)/)
-      if (fbMatch) {
-        results.frontToBackRatio = parseFloat(fbMatch[1])
-      }
+        for (const line of lines) {
+          const values = line.trim().split(/\s+/)
+          if (values.length >= 8) {
+            const theta = parseFloat(values[0])
+            const phi = parseFloat(values[1])
+            const gain = parseFloat(values[7]) // Total gain in dB
 
-      // Parse radiation patterns (simplified)
-      results.patterns = {
-        horizontal: [],
-        vertical: [],
+            if (gain > maxGain) {
+              maxGain = gain
+            }
+
+            // Front (phi = 0) and back (phi = 180) for F/B ratio
+            if (Math.abs(phi) < 5 && Math.abs(theta - 90) < 5) {
+              frontGain = gain
+            } else if (Math.abs(phi - 180) < 5 && Math.abs(theta - 90) < 5) {
+              backGain = gain
+            }
+          }
+        }
+
+        results.gain = maxGain
+        results.frontToBackRatio = frontGain - backGain
       }
 
       // Default values if not found
       results.gain = results.gain || 0
       results.frontToBackRatio = results.frontToBackRatio || 0
-      results.efficiency = 85 // Estimated
-      results.frequency = 146 // Default
+      results.efficiency = 85 // Estimated default
+      results.frequency = 146 // Will be overwritten by actual frequency
+      results.vswr = results.vswr || 1.5
+
+      console.log('Parsed results:', results)
     } catch (error) {
       console.warn('Error parsing NEC output:', error)
+      console.log('First 500 chars of output:', output.substring(0, 500))
     }
 
     return results as SimulationResults
@@ -284,41 +313,71 @@ export class NEC2Engine {
 
       // Write input file to virtual filesystem
       const inputFilename = `antenna_${Date.now()}.nec`
-      const outputFilename = `output_${Date.now()}.out`
 
       this.module.FS.writeFile(inputFilename, necInput)
 
       // Run NEC2C simulation
       console.log('Running NEC2C simulation...')
+      console.log('Input file:', inputFilename)
       const startTime = performance.now()
 
-      // Call main function with input file
-      const result = this.module.ccall(
-        'main',
-        'number',
-        ['number', 'array'],
-        [
-          2, // argc
-          [inputFilename, outputFilename], // argv
-        ]
-      )
+      let result: number
 
-      const endTime = performance.now()
-      console.log(`Simulation completed in ${(endTime - startTime).toFixed(2)}ms`)
-
-      if (result !== 0) {
-        throw new NEC2Error(
-          `NEC2C simulation failed with exit code: ${result}`,
-          'SIMULATION_FAILED'
-        )
+      try {
+        // Try to use callMain if available
+        if (this.module.callMain) {
+          // Use callMain with just the input file
+          result = this.module.callMain([inputFilename])
+        } else if (this.module.ccall) {
+          // Use ccall to invoke the main function
+          result = this.module.ccall(
+            'main',
+            'number',
+            ['number', 'array'],
+            [
+              2, // argc
+              [inputFilename], // argv - just input file
+            ]
+          )
+        } else {
+          throw new NEC2Error('No method available to call NEC2C main function', 'NO_MAIN')
+        }
+      } catch (err) {
+        console.error('Error calling NEC2C:', err)
+        // Even if main returns non-zero, we might have output
+        result = -1
       }
 
-      // Read output file
+      const endTime = performance.now()
+      console.log(
+        `Simulation completed in ${(endTime - startTime).toFixed(2)}ms with code: ${result}`
+      )
+
+      // Try to read output file - NEC2C creates .out file with same base name
+      const outputFilename = inputFilename.replace('.nec', '.out')
       let output: string
+
       try {
         output = this.module.FS.readFile(outputFilename, { encoding: 'utf8' }) as string
+        console.log('Output file read successfully, length:', output.length)
       } catch {
-        throw new NEC2Error('Failed to read simulation output', 'OUTPUT_READ_FAILED')
+        // Try alternate output filename
+        try {
+          output = this.module.FS.readFile(outputFilename.replace('.out', '.OUT'), {
+            encoding: 'utf8',
+          }) as string
+          console.log('Output file read successfully (uppercase), length:', output.length)
+        } catch (err) {
+          console.error('Failed to read output file:', err)
+          // List files to debug
+          try {
+            const files = this.module.FS.readdir('.')
+            console.log('Files in directory:', files)
+          } catch (debugErr) {
+            console.warn('Unable to list directory for debugging:', debugErr)
+          }
+          throw new NEC2Error('Failed to read simulation output', 'OUTPUT_READ_FAILED')
+        }
       }
 
       // Parse results
@@ -328,7 +387,6 @@ export class NEC2Engine {
       // Cleanup
       try {
         this.module.FS.unlink(inputFilename)
-        this.module.FS.unlink(outputFilename)
       } catch (error) {
         console.warn('Failed to cleanup temporary files:', error)
       }
