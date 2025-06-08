@@ -16,6 +16,7 @@ import { ParameterForm } from '../antenna/ParameterForm'
 import { Antenna3D } from '../antenna/Antenna3D'
 import { FileUploadDropzone } from '../antenna/FileUploadDropzone'
 import { FileExportModal } from '../antenna/FileExportModal'
+import { SimulationResultsDisplay } from '../antenna/SimulationResultsDisplay'
 import { useAntennaStore } from '@/stores/antenna/antennaStore'
 import { useSimulationStore } from '@/stores/simulation.store'
 import type { AntennaPreset } from '@/types/antenna/presets'
@@ -210,6 +211,9 @@ export function DesignTab() {
             </Button>
           </CardBody>
         </Card>
+
+        {/* Simulation Results */}
+        <SimulationResultsDisplay />
       </div>
 
       {/* Right Panel - 3D Visualization */}

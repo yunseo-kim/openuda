@@ -359,97 +359,84 @@ export class NEC2Engine {
   }
 
   /**
-   * Run antenna simulation
+   * Run a simulation with the given antenna parameters.
+   * Ensures the module is loaded before running.
    */
   async simulate(params: AntennaParams): Promise<SimulationResults> {
-    if (!this.module) {
-      throw new NEC2Error('NEC2C module not loaded. Call loadModule() first.', 'MODULE_NOT_LOADED')
+    if (!this.isLoaded || !this.module) {
+      console.log('NEC2C module not loaded, loading now...')
+      await this.loadModule()
     }
 
+    if (!this.module) {
+      throw new NEC2Error('NEC2C module not loaded. Call loadModule() first.', 'NOT_LOADED')
+    }
+
+    const inputFilename = 'input.nec'
+    const outputFilename = 'input.out'
+
+    const necInput = this.generateNECInput(params)
+    this.module.FS.writeFile(inputFilename, necInput)
+
     try {
-      // Generate NEC input file
-      const necInput = this.generateNECInput(params)
-
-      // Write input file to virtual filesystem
-      const inputFilename = `antenna_${Date.now()}.nec`
-
-      this.module.FS.writeFile(inputFilename, necInput)
-
       // Run NEC2C simulation
       console.log('Running NEC2C simulation...')
       console.log('Input file:', inputFilename)
       const startTime = performance.now()
 
-      let result: number
+      if (!this.module.callMain) {
+        throw new NEC2Error('callMain is not defined on the module.', 'CALLMAIN_UNDEFINED')
+      }
 
+      let result = 0
       try {
-        // The module MUST have callMain method.
-        if (!this.module.callMain) {
-          throw new NEC2Error('Module is missing the callMain method', 'NO_MAIN')
-        }
-
-        const outputFilename = inputFilename.replace('.nec', '.out')
         // Use callMain with input and output file arguments
         result = this.module.callMain(['-i', inputFilename, '-o', outputFilename])
       } catch (err) {
         console.error('Error calling NEC2C:', err)
-        // Even if main returns non-zero, we might have output
-        result = -1
-      }
-
-      const endTime = performance.now()
-      console.log(
-        `Simulation completed in ${(endTime - startTime).toFixed(2)}ms with code: ${result}`
-      )
-
-      // Try to read output file - NEC2C creates .out file with same base name
-      const outputFilename = inputFilename.replace('.nec', '.out')
-      let output: string
-
-      try {
-        output = this.module.FS.readFile(outputFilename, { encoding: 'utf8' }) as string
-        console.log('Output file read successfully, length:', output.length)
-      } catch {
-        // Try alternate output filename
-        try {
-          output = this.module.FS.readFile(outputFilename.replace('.out', '.OUT'), {
-            encoding: 'utf8',
-          }) as string
-          console.log('Output file read successfully (uppercase), length:', output.length)
-        } catch (err) {
-          console.error('Failed to read output file:', err)
-          // List files to debug
-          try {
-            const files = this.module.FS.readdir('.')
-            console.log('Files in directory:', files)
-          } catch (debugErr) {
-            console.warn('Unable to list directory for debugging:', debugErr)
-          }
-          throw new NEC2Error('Failed to read simulation output', 'OUTPUT_READ_FAILED')
+        // This catch is for Emscripten's exit() which throws an exception
+        if (typeof err === 'object' && err !== null && 'name' in err && err.name === 'ExitStatus') {
+          // This is a normal exit, not a true error.
+        } else {
+          throw err // Re-throw if it's not an exit status
         }
       }
 
-      // Parse results
+      const endTime = performance.now()
+      console.log(`NEC2C execution finished in ${(endTime - startTime).toFixed(2)} ms.`)
+
+      if (result !== 0) {
+        console.warn(`NEC2C exited with non-zero status: ${result}`)
+      }
+
+      // Try to read output file - NEC2C creates .out file with same base name
+      let output: string
+      try {
+        const outputData = this.module.FS.readFile(outputFilename, { encoding: 'utf8' })
+        output = outputData as string
+      } catch (readError) {
+        console.error(`Failed to read output file: ${outputFilename}`, readError)
+        throw new NEC2Error('Failed to read NEC2C output file.', 'READ_FAILED')
+      }
+
+      if (!output) {
+        throw new NEC2Error('NEC2C output file is empty.', 'EMPTY_OUTPUT')
+      }
+
+      // Parse output
       const simulationResults = this.parseNECOutput(output)
       simulationResults.frequency = params.frequency
-
+      return simulationResults
+    } finally {
       // Cleanup
       try {
-        this.module.FS.unlink(inputFilename)
-        this.module.FS.unlink(outputFilename)
+        if (this.module) {
+          this.module.FS.unlink(inputFilename)
+          this.module.FS.unlink(outputFilename)
+        }
       } catch (error) {
-        console.warn('Failed to cleanup temporary files:', error)
+        console.warn('Failed to clean up NEC files:', error)
       }
-
-      console.log('==== NEC2C RAW OUTPUT (for debugging) ====\\n', output)
-
-      return simulationResults
-    } catch (error) {
-      if (error instanceof NEC2Error) {
-        throw error
-      }
-      console.error('Simulation error:', error)
-      throw new NEC2Error('Unexpected simulation error', 'UNKNOWN_ERROR')
     }
   }
 

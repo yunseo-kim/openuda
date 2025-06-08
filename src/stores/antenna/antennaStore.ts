@@ -46,7 +46,10 @@ export const useAntennaStore = create<AntennaState>((set, get) => ({
 
   runSimulation: async () => {
     const { frequency, elements } = get()
+    console.log('🔄 Starting simulation:', { frequency, elementCount: elements.length })
+
     if (elements.length === 0) {
+      console.log('❌ No elements, clearing results')
       useSimulationStore.getState().clearResults()
       return
     }
@@ -60,9 +63,12 @@ export const useAntennaStore = create<AntennaState>((set, get) => ({
         elements,
         groundType: 'none', // Or get this from state if configurable
       }
+      console.log('📡 Running antenna simulation...')
       const results = await simulateAntenna(antennaParams)
+      console.log('✅ Simulation complete:', results)
       setResults(results)
     } catch (err) {
+      console.error('❌ Simulation error:', err)
       setError(err instanceof Error ? err.message : 'Unknown simulation error')
     } finally {
       nec2Engine.unload() // Ensure engine is always unloaded
