@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import type { PresetElement } from '@/types/antenna/presets'
-import { simulateAntenna, type AntennaParams, nec2Engine } from '@/utils/nec2c'
+import { simulateAntenna, type AntennaParams } from '@/utils/nec2c'
 import { useSimulationStore } from '../simulation.store'
+import { runGeneticAlgorithm, type OptimizationTarget } from '@/utils/antenna/optimizer'
 
 interface AntennaState {
   // Design parameters
@@ -15,7 +16,7 @@ interface AntennaState {
   setSelectedPresetId: (id?: string) => void
   resetDesign: () => void
   runSimulation: () => Promise<void>
-  runOptimization: (target: 'gain' | 'fbRatio') => Promise<void>
+  runOptimization: (target: OptimizationTarget) => Promise<void>
 }
 
 const defaultDesign = {
@@ -70,26 +71,39 @@ export const useAntennaStore = create<AntennaState>((set, get) => ({
     } catch (err) {
       console.error('❌ Simulation error:', err)
       setError(err instanceof Error ? err.message : 'Unknown simulation error')
-    } finally {
-      nec2Engine.unload() // Ensure engine is always unloaded
     }
   },
 
   runOptimization: async target => {
+    console.log('🚀 Optimization started with target:', target)
     const { setOptimizing, addOptimizationLog, clearOptimizationLog } =
       useSimulationStore.getState()
+    const { frequency, elements, setElements: setOptimizedElements } = get()
+
+    if (elements.length === 0) {
+      addOptimizationLog('Cannot optimize an empty design.')
+      return
+    }
 
     clearOptimizationLog()
     setOptimizing(true)
-    addOptimizationLog(`Starting optimization for: ${target}...`)
 
-    // Placeholder for actual optimization logic
-    await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate work
+    try {
+      const bestElements = await runGeneticAlgorithm({
+        initialElements: elements,
+        frequency,
+        target,
+        onProgress: addOptimizationLog,
+      })
 
-    addOptimizationLog('Iteration 1: Adjusting elements...')
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    addOptimizationLog('Optimization finished.')
-    setOptimizing(false)
+      // 최적화된 결과로 상태 업데이트
+      setOptimizedElements(bestElements)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown optimization error'
+      addOptimizationLog(`❌ Optimization failed: ${errorMessage}`)
+      console.error('Optimization process error:', error)
+    } finally {
+      setOptimizing(false)
+    }
   },
 }))

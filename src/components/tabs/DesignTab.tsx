@@ -21,6 +21,7 @@ import { useAntennaStore } from '@/stores/antenna/antennaStore'
 import { useSimulationStore } from '@/stores/simulation.store'
 import type { AntennaPreset } from '@/types/antenna/presets'
 import type { AntennaParams } from '@/utils/nec2c'
+import type { OptimizationTarget } from '@/utils/antenna/optimizer'
 
 type DesignMode = 'preset' | 'manual' | 'import'
 
@@ -39,7 +40,7 @@ export function DesignTab() {
 
   const [designMode, setDesignMode] = useState<DesignMode>('preset')
   const [showExportModal, setShowExportModal] = useState(false)
-  const [optimizationTarget, setOptimizationTarget] = useState<'gain' | 'fbRatio'>('gain')
+  const [optimizationTarget, setOptimizationTarget] = useState<OptimizationTarget>('balanced')
 
   // Handle preset selection
   const handlePresetSelect = (preset: AntennaPreset) => {
@@ -185,12 +186,13 @@ export function DesignTab() {
               className="max-w-[150px]"
               selectedKeys={[optimizationTarget]}
               onSelectionChange={keys =>
-                setOptimizationTarget(Array.from(keys)[0] as 'gain' | 'fbRatio')
+                setOptimizationTarget(Array.from(keys)[0] as OptimizationTarget)
               }
               isDisabled={elements.length === 0 || isOptimizing}
             >
-              <SelectItem key="gain">Gain</SelectItem>
-              <SelectItem key="fbRatio">F/B Ratio</SelectItem>
+              <SelectItem key="gain">Max Gain</SelectItem>
+              <SelectItem key="fbRatio">Max F/B Ratio</SelectItem>
+              <SelectItem key="balanced">Balanced</SelectItem>
             </Select>
 
             <Button color="default" variant="flat" size="sm" onPress={resetDesign}>

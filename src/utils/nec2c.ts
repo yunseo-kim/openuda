@@ -20,6 +20,7 @@ interface NEC2Module {
     unlink: (path: string) => void
     mkdir: (path: string) => void
     readdir: (path: string) => string[]
+    chdir: (path: string) => void
   }
   ready: Promise<NEC2Module>
   _malloc: (size: number) => number
@@ -90,66 +91,80 @@ export class NEC2Engine {
    * Load the NEC2C WebAssembly module
    */
   async loadModule(): Promise<void> {
-    if (this.isLoaded) return
-    if (this.isLoading) {
-      // Wait for current loading to complete
-      while (this.isLoading) {
-        await new Promise(resolve => setTimeout(resolve, 100))
+    // This loop robustly handles race conditions where the module is unloaded
+    // by another process while this one was waiting for the initial load.
+    while (!this.isLoaded) {
+      if (this.isLoading) {
+        // Wait for the other loading process to complete.
+        while (this.isLoading) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        // After waiting, loop again to re-check `isLoaded`, as the other
+        // process might have unloaded the module after loading it.
+        continue
       }
-      return
-    }
 
-    try {
-      this.isLoading = true
+      try {
+        this.isLoading = true
 
-      // Always use single-threaded version to avoid Worker issues
-      console.log('Loading single-threaded NEC2C engine...')
+        // Always use single-threaded version to avoid Worker issues
+        console.log('Loading single-threaded NEC2C engine...')
 
-      // Load the single-threaded version
-      const response = await fetch('/wasm/nec2_direct_single.js')
-      const moduleText = await response.text()
+        // Load the single-threaded version
+        const response = await fetch('/wasm/nec2_direct_single.js')
+        const moduleText = await response.text()
 
-      // Replace Worker creation code to avoid errors
-      const modifiedModuleText = moduleText
-        .replace(/new Worker\(new URL\([^)]+\)[^)]*\)/g, 'null')
-        .replace(/allocateUnusedWorker/g, 'function(){}')
+        // Replace Worker creation code to avoid errors
+        const modifiedModuleText = moduleText
+          .replace(/new Worker\\(new URL\\([^)]+\\)[^)]*\\)/g, 'null')
+          .replace(/allocateUnusedWorker/g, 'function(){}')
 
-      const moduleBlob = new Blob([modifiedModuleText], { type: 'application/javascript' })
-      const moduleUrl = URL.createObjectURL(moduleBlob)
-      const { default: moduleFactory } = await import(/* @vite-ignore */ moduleUrl)
+        const moduleBlob = new Blob([modifiedModuleText], { type: 'application/javascript' })
+        const moduleUrl = URL.createObjectURL(moduleBlob)
+        const { default: moduleFactory } = await import(/* @vite-ignore */ moduleUrl)
 
-      // Initialize the module with single-threaded configuration
-      this.module = await moduleFactory({
-        // Prevent main() from running on initialization
-        noInitialRun: true,
-        // Locate WASM files
-        locateFile: (path: string) => {
-          if (path.endsWith('.wasm')) {
-            return '/wasm/nec2_direct_single.wasm'
+        // Initialize the module with single-threaded configuration
+        this.module = await moduleFactory({
+          // Prevent main() from running on initialization
+          noInitialRun: true,
+          // Locate WASM files
+          locateFile: (path: string) => {
+            if (path.endsWith('.wasm')) {
+              return '/wasm/nec2_direct_single.wasm'
+            }
+            return path
+          },
+          // Single-threaded configuration
+          ENVIRONMENT_IS_PTHREAD: false,
+          USE_PTHREADS: false,
+          PTHREAD_POOL_SIZE: 0,
+          // Print function for debugging
+          print: (text: string) => console.log('[NEC2C]', text),
+          printErr: (text: string) => console.error('[NEC2C]', text),
+        })
+
+        if (this.module) {
+          await this.module.ready
+          this.isLoaded = true
+
+          // Create a working directory to avoid issues with current directory changes
+          try {
+            this.module.FS.mkdir('/work')
+          } catch {
+            // Directory may already exist if the module is re-initialized. This is fine.
           }
-          return path
-        },
-        // Single-threaded configuration
-        ENVIRONMENT_IS_PTHREAD: false,
-        USE_PTHREADS: false,
-        PTHREAD_POOL_SIZE: 0,
-        // Print function for debugging
-        print: (text: string) => console.log('[NEC2C]', text),
-        printErr: (text: string) => console.error('[NEC2C]', text),
-      })
+          this.module.FS.chdir('/work') // Set current directory
 
-      if (this.module) {
-        await this.module.ready
-        this.isLoaded = true
-        console.log('NEC2C engine loaded successfully')
-      } else {
-        throw new NEC2Error('Failed to initialize NEC2C module', 'INIT_FAILED')
+          console.log('NEC2C engine loaded successfully')
+        } else {
+          throw new NEC2Error('Failed to initialize NEC2C module', 'INIT_FAILED')
+        }
+      } catch (error) {
+        console.error('Failed to load NEC2C engine:', error)
+        throw new NEC2Error('Failed to load NEC2C WebAssembly module', 'LOAD_FAILED')
+      } finally {
+        this.isLoading = false
       }
-    } catch (error) {
-      console.error('Failed to load NEC2C engine:', error)
-      throw new NEC2Error('Failed to load NEC2C WebAssembly module', 'LOAD_FAILED')
-    } finally {
-      this.isLoading = false
     }
   }
 
@@ -372,16 +387,20 @@ export class NEC2Engine {
       throw new NEC2Error('NEC2C module not loaded. Call loadModule() first.', 'NOT_LOADED')
     }
 
-    const inputFilename = 'input.nec'
-    const outputFilename = 'input.out'
+    // Ensure we are in the correct working directory before simulation
+    this.module.FS.chdir('/work')
+
+    // Generate unique filenames for this simulation instance to allow parallel execution.
+    const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    const inputFilename = `input_${uniqueId}.nec`
+    const outputFilename = `output_${uniqueId}.out`
 
     const necInput = this.generateNECInput(params)
     this.module.FS.writeFile(inputFilename, necInput)
 
     try {
       // Run NEC2C simulation
-      console.log('Running NEC2C simulation...')
-      console.log('Input file:', inputFilename)
+      console.log('Running NEC2C simulation for file:', inputFilename)
       const startTime = performance.now()
 
       if (!this.module.callMain) {
@@ -393,11 +412,12 @@ export class NEC2Engine {
         // Use callMain with input and output file arguments
         result = this.module.callMain(['-i', inputFilename, '-o', outputFilename])
       } catch (err) {
-        console.error('Error calling NEC2C:', err)
         // This catch is for Emscripten's exit() which throws an exception
         if (typeof err === 'object' && err !== null && 'name' in err && err.name === 'ExitStatus') {
           // This is a normal exit, not a true error.
         } else {
+          // It might be a real error.
+          console.error('Error calling NEC2C:', err)
           throw err // Re-throw if it's not an exit status
         }
       }
@@ -409,7 +429,7 @@ export class NEC2Engine {
         console.warn(`NEC2C exited with non-zero status: ${result}`)
       }
 
-      // Try to read output file - NEC2C creates .out file with same base name
+      // Try to read output file
       let output: string
       try {
         const outputData = this.module.FS.readFile(outputFilename, { encoding: 'utf8' })
@@ -434,8 +454,9 @@ export class NEC2Engine {
           this.module.FS.unlink(inputFilename)
           this.module.FS.unlink(outputFilename)
         }
-      } catch (error) {
-        console.warn('Failed to clean up NEC files:', error)
+      } catch {
+        // This might fail if the file was never created, which is fine.
+        // console.warn(`Failed to clean up NEC files: ${inputFilename}`, error)
       }
     }
   }
@@ -492,12 +513,28 @@ export class NEC2Engine {
 // Global engine instance
 export const nec2Engine = new NEC2Engine()
 
-// Convenience function for quick simulations
+/**
+ * Simulates an antenna design using the NEC2 engine.
+ * This function handles the full lifecycle of loading the engine, running the
+ * simulation, and unloading the engine to ensure a clean state for every run.
+ * This is crucial for stability, especially when running multiple simulations
+ * in sequence, as in the optimizer.
+ * @param params - The antenna parameters for the simulation.
+ * @returns A promise that resolves with the simulation results.
+ */
 export async function simulateAntenna(params: AntennaParams): Promise<SimulationResults> {
-  if (!nec2Engine.getStatus().loaded) {
-    await nec2Engine.loadModule()
+  try {
+    // The simulate method will internally handle loading if needed.
+    const results = await nec2Engine.simulate(params)
+    return results
+  } catch (error) {
+    console.error('An error occurred during the simulateAntenna lifecycle:', error)
+    // Re-throw the error to be handled by the caller
+    throw error
+  } finally {
+    // Always unload the engine to guarantee a pristine state for the next call.
+    nec2Engine.unload()
   }
-  return nec2Engine.simulate(params)
 }
 
 // Test function
