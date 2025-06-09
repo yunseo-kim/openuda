@@ -34,6 +34,8 @@ export class AntennaOptimizer {
   }
 
   public async run(): Promise<PresetElement[]> {
+    // 이전 로그 기록을 지워 메모리 부담을 줄입니다.
+    console.clear()
     this.options.onProgress('Initializing population...')
     this.initializePopulation()
 
@@ -65,7 +67,13 @@ export class AntennaOptimizer {
         2
       )} dBi, F/B Ratio: ${finalBest.results?.frontToBackRatio.toFixed(2)} dB`
     )
-    return finalBest.elements
+
+    const bestElements = finalBest.elements
+    // --- 명시적 메모리 해제 ---
+    // 최적화 완료 후 거대한 population 배열을 비워서 GC가 메모리를 쉽게 회수하도록 돕습니다.
+    this.population = []
+
+    return bestElements
   }
 
   private initializePopulation(): void {

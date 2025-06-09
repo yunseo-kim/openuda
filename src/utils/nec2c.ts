@@ -104,6 +104,7 @@ export class NEC2Engine {
         continue
       }
 
+      let moduleUrl: string | undefined
       try {
         this.isLoading = true
 
@@ -120,7 +121,8 @@ export class NEC2Engine {
           .replace(/allocateUnusedWorker/g, 'function(){}')
 
         const moduleBlob = new Blob([modifiedModuleText], { type: 'application/javascript' })
-        const moduleUrl = URL.createObjectURL(moduleBlob)
+        moduleUrl = URL.createObjectURL(moduleBlob)
+
         const { default: moduleFactory } = await import(/* @vite-ignore */ moduleUrl)
 
         // Initialize the module with single-threaded configuration
@@ -164,6 +166,9 @@ export class NEC2Engine {
         throw new NEC2Error('Failed to load NEC2C WebAssembly module', 'LOAD_FAILED')
       } finally {
         this.isLoading = false
+        if (moduleUrl) {
+          URL.revokeObjectURL(moduleUrl)
+        }
       }
     }
   }
