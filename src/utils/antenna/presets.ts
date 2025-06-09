@@ -15,7 +15,7 @@ export const antennaPresets: AntennaPreset[] = [
   {
     id: 'fm-broadcast-3el',
     name: '3-Element FM Broadcast',
-    description: 'Simple 3-element Yagi for FM radio reception (88-108 MHz)',
+    description: 'Simple 3-element Uda for FM radio reception (88-108 MHz)',
     frequency: 98,
     category: 'beginner',
     tags: ['FM', 'broadcast', 'reception'],
@@ -43,7 +43,7 @@ export const antennaPresets: AntennaPreset[] = [
   {
     id: '2m-amateur-5el',
     name: '5-Element 2m Amateur Radio',
-    description: 'Medium gain Yagi for 2-meter amateur band (144-148 MHz)',
+    description: 'Medium gain Uda for 2-meter amateur band (144-148 MHz)',
     frequency: 146,
     category: 'intermediate',
     tags: ['2m', 'amateur', 'VHF'],
@@ -83,7 +83,7 @@ export const antennaPresets: AntennaPreset[] = [
   {
     id: '70cm-amateur-7el',
     name: '7-Element 70cm Amateur Radio',
-    description: 'High gain Yagi for 70cm amateur band (430-440 MHz)',
+    description: 'High gain Uda for 70cm amateur band (430-440 MHz)',
     frequency: 435,
     category: 'intermediate',
     tags: ['70cm', 'amateur', 'UHF'],
