@@ -64,7 +64,7 @@ export function NEC2Test() {
     setResult('')
 
     try {
-      // Test with a 3-element Yagi antenna
+      // Test with a 3-element Uda antenna
       const params: AntennaParams = {
         frequency: 146, // 2m band
         elements: [
@@ -236,7 +236,7 @@ Simulation Results:
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500 dark:text-blue-400">3️⃣</span>
-              <span>Use "📡 Antenna Simulation" to simulate a 3-element Yagi antenna.</span>
+              <span>Use "📡 Antenna Simulation" to simulate a 3-element Uda antenna.</span>
             </li>
           </ol>
         </div>

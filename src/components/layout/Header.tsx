@@ -15,7 +15,9 @@ export function Header() {
           </div>
           <div>
             <p className="font-bold text-gray-900 dark:text-gray-100">OpenUda</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Yagi-Uda Antenna Designer</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Modern, Easy-to-Use Uda Antenna Designer
+            </p>
           </div>
         </div>
       </NavbarBrand>
