@@ -17,7 +17,7 @@ export function SimulationResultsDisplay() {
             <h3 className="font-semibold text-blue-800 dark:text-blue-200">Optimizing...</h3>
           </div>
           <pre className="whitespace-pre-wrap text-xs font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 p-4 rounded border h-32 overflow-y-auto">
-            {optimizationLog.join('\\n')}
+            {optimizationLog.join('\n')}
           </pre>
         </div>
       )
