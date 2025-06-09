@@ -213,15 +213,12 @@ export function DesignTab() {
             </Button>
           </CardBody>
         </Card>
-
-        {/* Simulation Results */}
-        <SimulationResultsDisplay />
       </div>
 
-      {/* Right Panel - 3D Visualization */}
-      <div className="space-y-4">
-        <Card className="h-full min-h-[600px] bg-white dark:bg-gray-800">
-          <CardBody className="p-0">
+      {/* Right Panel - 3D Visualization & Results */}
+      <div className="flex flex-col gap-4">
+        <Card className="flex-1 min-h-[500px] lg:min-h-[600px] bg-white dark:bg-gray-800 h-full">
+          <CardBody className="p-0 h-full">
             {elements.length > 0 ? (
               <Antenna3D
                 elements={elements}
@@ -240,6 +237,9 @@ export function DesignTab() {
             )}
           </CardBody>
         </Card>
+
+        {/* Simulation Results - ADDED to right panel */}
+        <SimulationResultsDisplay />
       </div>
 
       {/* File Export Modal */}
